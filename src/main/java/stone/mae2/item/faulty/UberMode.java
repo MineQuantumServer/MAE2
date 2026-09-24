@@ -84,8 +84,7 @@ public class UberMode extends FaultyCardMode {
           if (state.getBlock() instanceof AEBaseEntityBlock baseBlock) {
             baseBlock.use(state, level, pos, player, hand, new BlockHitResult(clickLocation, side, pos, false));
           } else {
-            BlockEntity be = level.getBlockEntity(pos);
-            if (be instanceof IPartHost aoePartHost) {
+            if (level.getBlockEntity(pos) instanceof IPartHost aoePartHost) {
               IPart part = aoePartHost.getPart(side);
               if (part != null) {
                 // no idea what the Vec pos argument does here, doesn't seem used in any implementation
