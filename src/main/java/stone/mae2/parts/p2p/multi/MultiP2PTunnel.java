@@ -393,14 +393,11 @@ public abstract class MultiP2PTunnel<T extends MultiP2PTunnel<T, L, P>, L extend
         }
 
         final CompoundTag data = mc.getData(is);
-        final short storedFrequency = data.getShort("freq");
+        final short storedFrequency = data.getShort(CONFIG_NBT_FREQ);
 
         short newFreq = this.getFrequency();
-        final boolean wasOutput = this.isOutput();
-        this.setOutput(false);
 
-        final boolean needsNewFrequency = wasOutput || this.getFrequency() == 0
-          || storedFrequency == newFreq;
+        final boolean needsNewFrequency = newFreq == 0 || storedFrequency == newFreq;
 
         var grid = getMainNode().getGrid();
         if (grid != null) {
@@ -408,6 +405,7 @@ public abstract class MultiP2PTunnel<T extends MultiP2PTunnel<T, L, P>, L extend
           if (needsNewFrequency) {
             newFreq = p2p.newFrequency(this.getTunnelClass());
             this.setFrequency(newFreq);
+            this.setOutput(false);
           }
         }
 
