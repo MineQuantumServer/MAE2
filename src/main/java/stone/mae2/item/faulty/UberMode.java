@@ -81,16 +81,14 @@ public class UberMode extends FaultyCardMode {
         Vec3 clickLocation = context.getClickLocation();
         for (BlockPos pos : BlockPos.betweenClosed(start, end)) {
           BlockState state = level.getBlockState(pos);
-          if (state.getBlock() instanceof AEBaseEntityBlock baseBlock) {
-            baseBlock.use(state, level, pos, player, hand, new BlockHitResult(clickLocation, side, pos, false));
-          } else {
-            if (level.getBlockEntity(pos) instanceof IPartHost aoePartHost) {
+          if (level.getBlockEntity(pos) instanceof IPartHost aoePartHost) {
               IPart part = aoePartHost.getPart(side);
               if (part != null) {
                 // no idea what the Vec pos argument does here, doesn't seem used in any implementation
                 failed |= !part.onActivate(player, hand, clickLocation);
               }
-            }
+          } else if (state.getBlock() instanceof AEBaseEntityBlock baseBlock) {
+            baseBlock.use(state, level, pos, player, hand, new BlockHitResult(clickLocation, side, pos, false));
           }
         }
 
