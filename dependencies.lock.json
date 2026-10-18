@@ -1,0 +1,28 @@
+{
+  "minecraft": "1.21.1",
+  "java": 21,
+  "neoforge": "21.1.248",
+  "moddevgradle": "2.0.141",
+  "gradle": "8.14",
+  "mae2": {
+    "url": "https://github.com/MineQuantumServer/MAE2.git",
+    "commit": "48538ec812580bd5abdbcda4c6e0d3ad79e0ff16"
+  },
+  "gt": {
+    "url": "https://github.com/FortyTwoCn/GregTech-Modern.git",
+    "branch": "1.21",
+    "commit": "56986013d11de16b66a51805f9df8e3f1961cd69",
+    "version": "8.0.0",
+    "artifact": "gtceu-1.21.1-8.0.0.jar",
+    "sha256": null
+  },
+  "ae2": {
+    "url": "https://github.com/AppliedEnergistics/Applied-Energistics-2.git",
+    "branch": "1.21.1",
+    "commit": "db17504a86128fdf3dae31f5fb7a112a646e0b93",
+    "version": "19.2.18",
+    "artifact": "appliedenergistics2-19.2.18.jar",
+    "sha256": "df15a07f86ca1ca93aa66373f9d5d84dd3d4586631fceb38f4fbc85dad591e39",
+    "download": "https://github.com/AppliedEnergistics/Applied-Energistics-2/releases/download/neoforge/v19.2.18/appliedenergistics2-19.2.18.jar"
+  }
+}
