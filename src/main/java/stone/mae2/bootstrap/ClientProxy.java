@@ -9,12 +9,12 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.client.event.RegisterColorHandlersEvent;
-import net.minecraftforge.common.MinecraftForge;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.neoforge.client.event.RegisterColorHandlersEvent;
+import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.DeferredHolder;
 import stone.mae2.MAE2;
 import stone.mae2.block.crafting.DynamicCraftingUnitType;
 import stone.mae2.client.render.crafting.DynamicCraftingCubeModelProvider;
@@ -28,7 +28,7 @@ import stone.mae2.parts.p2p.multi.MultiP2PTunnel;
 public class ClientProxy implements Proxy {
   private static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister
     .create(Registries.CREATIVE_MODE_TAB, MAE2.MODID);
-  public static RegistryObject<CreativeModeTab> CREATIVE_TAB;
+  public static DeferredHolder<CreativeModeTab, CreativeModeTab> CREATIVE_TAB;
 
   public void init(IEventBus bus) {
     new ServerProxy().init(bus);
@@ -80,7 +80,7 @@ public class ClientProxy implements Proxy {
                     MAE2Items.FAULTY_MEMORY_CARD.get());
       });
 
-    MinecraftForge.EVENT_BUS.addListener(UberMode::onRenderLevel);
+    NeoForge.EVENT_BUS.addListener(stone.mae2.client.UberSelectionRenderer::onRenderLevel);
 
     bus.addListener((FMLClientSetupEvent event) -> {
         event.enqueueWork(() -> {

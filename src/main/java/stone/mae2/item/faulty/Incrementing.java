@@ -19,6 +19,7 @@
 package stone.mae2.item.faulty;
 
 import appeng.api.implementations.items.IMemoryCard;
+import appeng.api.ids.AEComponents;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.SelectedPart;
 import appeng.api.util.AEColor;
@@ -50,17 +51,20 @@ public class Incrementing extends FaultyCardMode {
         if (be instanceof IPartHost partHost) {
             SelectedPart selectedPart = partHost.selectPartWorld(context.getClickLocation());
             if (selectedPart.part != null && selectedPart.side != null && stack.getItem() instanceof IMemoryCard card) {
-                CompoundTag data = card.getData(stack);
                 if (AbstractLevelEmitterPart.class.isAssignableFrom(selectedPart.part.getClass())) {
                     // yes the tag name is hardcoded in AE2 too
-                    data.putLong("reportingValue", data.getLong("reportingValue") + (isIncrementing ? 1 : -1));
+                    long value = stack.getOrDefault(AEComponents.EXPORTED_LEVEL_EMITTER_VALUE, 0L);
+                    if (isIncrementing ? value < Long.MAX_VALUE : value > Long.MIN_VALUE)
+                        stack.set(AEComponents.EXPORTED_LEVEL_EMITTER_VALUE, value + (isIncrementing ? 1 : -1));
                 }
                 if (StorageBusPart.class.isAssignableFrom(selectedPart.part.getClass())) {
                     // yes the tag name is hardcoded in AE2 too
-                    data.putInt("priority", data.getInt("priority") + (isIncrementing ? 1 : -1));
+                    int value = stack.getOrDefault(AEComponents.EXPORTED_PRIORITY, 0);
+                    if (isIncrementing ? value < Integer.MAX_VALUE : value > Integer.MIN_VALUE)
+                        stack.set(AEComponents.EXPORTED_PRIORITY, value + (isIncrementing ? 1 : -1));
                 }
 
-                stack.getOrCreateTag().put("Data", data);
+
             }
         }
 
@@ -71,7 +75,7 @@ public class Incrementing extends FaultyCardMode {
     public InteractionResultHolder<ItemStack> onItemUse(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         this.isIncrementing = !isIncrementing;
-        this.save(stack.getOrCreateTag());
+        this.save(stack);
         player.displayClientMessage(getName(), true);
         return InteractionResultHolder.consume(stack);
     }

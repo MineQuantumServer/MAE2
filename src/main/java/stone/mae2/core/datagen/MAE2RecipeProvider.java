@@ -22,7 +22,9 @@ import appeng.core.definitions.AEBlocks;
 import appeng.core.definitions.AEItems;
 import appeng.core.definitions.AEParts;
 import net.minecraft.data.PackOutput;
-import net.minecraft.data.recipes.FinishedRecipe;
+import net.minecraft.data.recipes.RecipeOutput;
+import java.util.concurrent.CompletableFuture;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.data.recipes.RecipeCategory;
 import net.minecraft.data.recipes.RecipeProvider;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
@@ -39,10 +41,10 @@ import java.util.function.Consumer;
 
 public class MAE2RecipeProvider extends RecipeProvider {
 
-  public MAE2RecipeProvider(PackOutput output) { super(output); }
+  public MAE2RecipeProvider(PackOutput output, CompletableFuture<HolderLookup.Provider> registries) { super(output, registries); }
 
   @Override
-  protected void buildRecipes(Consumer<FinishedRecipe> consumer) {
+  protected void buildRecipes(RecipeOutput consumer) {
     buildAcceleratorRecipe(consumer, MAE2Items.ACCELERATOR_4x.get(),
       AEItems.CELL_COMPONENT_4K, "network/crafting/4x_crafting_accelerator");
     buildAcceleratorRecipe(consumer, MAE2Items.ACCELERATOR_16x.get(),
@@ -53,18 +55,11 @@ public class MAE2RecipeProvider extends RecipeProvider {
       AEItems.CELL_COMPONENT_256K,
       "network/crafting/256x_crafting_accelerator");
 
-    MultiP2PTunnelAttunement.registerStockAttunements();
-    /* This doesn't work anymore for some reason, updating it would change
-    recipe ids, so wait for a bigger version to change
-    for (var tunnelPair : MultiP2PTunnelAttunement.getRegistry().entrySet()) {
-      String simpleName = tunnelPair.getValue().getPartClass().getSimpleName();
-      buildMultiP2PRecipe(consumer, tunnelPair.getValue(), tunnelPair.getKey(),
-        MAE2
-          .toKey("network/parts/multi_p2p_tunnel_" + simpleName
-            .substring(0, simpleName.length() - "MultiP2PPart".length())
-            .toLowerCase()));
-    }
-    */
+    buildMultiP2PRecipe(consumer, MAE2Items.ITEM_MULTI_P2P_TUNNEL.get(), AEParts.ITEM_P2P_TUNNEL, MAE2.toKey("network/parts/multi_p2p_tunnel_item"));
+    buildMultiP2PRecipe(consumer, MAE2Items.FLUID_MULTI_P2P_TUNNEL.get(), AEParts.FLUID_P2P_TUNNEL, MAE2.toKey("network/parts/multi_p2p_tunnel_fluid"));
+    buildMultiP2PRecipe(consumer, MAE2Items.FE_MULTI_P2P_TUNNEL.get(), AEParts.FE_P2P_TUNNEL, MAE2.toKey("network/parts/multi_p2p_tunnel_fe"));
+    buildMultiP2PRecipe(consumer, MAE2Items.REDSTONE_MULTI_P2P_TUNNEL.get(), AEParts.REDSTONE_P2P_TUNNEL, MAE2.toKey("network/parts/multi_p2p_tunnel_redstone"));
+    buildMultiP2PRecipe(consumer, MAE2Items.PATTERN_MULTI_P2P_TUNNEL.get(), MAE2Items.PATTERN_P2P_TUNNEL.get(), MAE2.toKey("network/parts/multi_p2p_tunnel_pattern"));
 
     // stopgap for the fact that ME Multi P2Ps don't exist (so there's no direct
     // crafting recipe to Multi P2Ps, you'd need to attune a ME P2P to something
@@ -96,7 +91,7 @@ public class MAE2RecipeProvider extends RecipeProvider {
       .save(consumer);
   }
 
-  public static void buildAcceleratorRecipe(Consumer<FinishedRecipe> consumer,
+  public static void buildAcceleratorRecipe(RecipeOutput consumer,
     ItemLike output, ItemLike component, String id) {
     ShapelessRecipeBuilder
       .shapeless(RecipeCategory.MISC, output)
@@ -106,7 +101,7 @@ public class MAE2RecipeProvider extends RecipeProvider {
       .save(consumer, MAE2.toKey(id));
   }
 
-  public static void buildMultiP2PRecipe(Consumer<FinishedRecipe> consumer,
+  public static void buildMultiP2PRecipe(RecipeOutput consumer,
     ItemLike multi, ItemLike single, ResourceLocation id) {
     ShapelessRecipeBuilder
       .shapeless(RecipeCategory.MISC, multi)

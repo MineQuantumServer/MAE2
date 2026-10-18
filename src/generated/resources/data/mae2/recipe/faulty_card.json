@@ -1,0 +1,26 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "equipment",
+  "key": {
+    "c": {
+      "item": "minecraft:copper_ingot"
+    },
+    "g": {
+      "item": "minecraft:gold_ingot"
+    },
+    "l": {
+      "item": "ae2:logic_processor"
+    },
+    "r": {
+      "item": "minecraft:redstone"
+    }
+  },
+  "pattern": [
+    "lcc",
+    "grg"
+  ],
+  "result": {
+    "count": 1,
+    "id": "mae2:faulty_card"
+  }
+}

@@ -20,7 +20,7 @@ package stone.mae2.me.service;
 
 import appeng.api.config.Actionable;
 import appeng.api.config.PowerMultiplier;
-import appeng.api.config.PowerUnits;
+import appeng.api.config.PowerUnit;
 import appeng.api.networking.GridHelper;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.IGridNode;
@@ -96,22 +96,34 @@ public class MultiP2PService implements IGridService, IGridServiceProvider {
     // add one to hopefully prevent both P2P services from making the same
     // frequencies
     this.frequencyGenerator = new Random(g.hashCode() + 1);
-    if (MAE2.CONFIG.parts().isEUP2PNerfed())
-      transferredAmps = new double[GTValues.TIER_COUNT];
+    transferredAmps = new double[GTValues.TIER_COUNT];
   }
 
   @Override
   public void onServerEndTick() {
+    for (var frequencies : attunement2frequency2tunnelMap.values()) {
+      var iter = frequencies.values().iterator();
+      while (iter.hasNext()) {
+        var tunnel = iter.next();
+        tunnel.flushPersistentDataChanges();
+        if (tunnel.getInputs().isEmpty() && tunnel.getOutputs().isEmpty()) {
+          tickingQueue.removeIf(entry -> entry.getTickable() == tunnel);
+          iter.remove();
+        }
+      }
+    }
+    if (MAE2.CONFIG.parts().isEUP2PNerfed() && transferredAmps == null) transferredAmps = new double[GTValues.TIER_COUNT];
     // short circuit since most networks won't have ticking tunnels
     if (this.tickable) {
-      if (transferredAmps != null) {
+      if (!MAE2.CONFIG.parts().isEUP2PNerfed()) taxSatisfied = true;
+      if (MAE2.CONFIG.parts().isEUP2PNerfed()) {
         this.taxSatisfied = true;
         for (int i = 0; i < transferredAmps.length; i++) {
           double amps = transferredAmps[i];
           if (amps > 0) {
             // taxRate in AE/amp
-            double taxRate = PowerUnits.FE
-              .convertTo(PowerUnits.AE,
+            double taxRate = PowerUnit.FE
+              .convertTo(PowerUnit.AE,
                 GTValues.V[i] * getNerfTax(i, amps) * FeCompat.ratio(false));
             double tax = amps * taxRate;
             double extracted = this.myGrid
@@ -119,7 +131,7 @@ public class MultiP2PService implements IGridService, IGridServiceProvider {
               .extractAEPower(tax, Actionable.MODULATE, PowerMultiplier.CONFIG);
             if (extracted < tax) {
               this.taxSatisfied = false;
-              this.transferredAmps[i] -= Math.min(extracted / tax, amps);
+              this.transferredAmps[i] -= Math.min(extracted / taxRate, amps);
               break;
             } else {
               this.transferredAmps[i] = 0;
@@ -130,11 +142,12 @@ public class MultiP2PService implements IGridService, IGridServiceProvider {
       if (this.tickingQueue.isEmpty())
         return;
       this.currentTick++;
-      while (this.tickingQueue.peek().getNextTick() <= this.currentTick) {
+      while (!this.tickingQueue.isEmpty() && this.tickingQueue.peek().getNextTick() <= this.currentTick) {
         TickingEntry entry = this.tickingQueue.poll();
         // MAE2.LOGGER.info("Ticking tunnel {} on tick {}", entry,
         // this.currentTick);
         TickRateModulation mod = entry.getTickable().tick();
+        if (entry.getTickable() instanceof MultiP2PTunnel<?, ?, ?> tunnel) tunnel.flushPersistentDataChanges();
         if (mod != TickRateModulation.SLEEP) {
           entry.update(mod);
           // MAE2.LOGGER.info("Next scheduled tick {}", entry.getNextTick());
@@ -196,11 +209,6 @@ public class MultiP2PService implements IGridService, IGridServiceProvider {
     // okay here because the part should always reference the right type of
     // tunnel
     if (node.getOwner() instanceof MultiP2PTunnel.Part part) {
-      // this will leave an empty MultiTunnel in memory, but the player might
-      // make
-      // parts with the freq again, otherwise it'll get wiped on world restart
-      // or
-      // something
       MultiP2PTunnel tunnel = getTunnel(part);
       tunnel.removeTunnel(part);
     }
@@ -218,7 +226,6 @@ public class MultiP2PService implements IGridService, IGridServiceProvider {
 
   @Override
   public void saveNodeData(IGridNode node, CompoundTag savedData) {
-    // TODO Auto-generated method stub
     if (node.getOwner() instanceof MultiP2PTunnel.Part part) {
       MultiP2PTunnel tunnel = getTunnel(part);
       Tag toSave = tunnel.saveNodeData(part);
@@ -228,21 +235,33 @@ public class MultiP2PService implements IGridService, IGridServiceProvider {
     }
   }
 
-  public short newFrequency(Class<? extends MultiP2PTunnel<?, ?, ?>> tunnel) {
-    short newFrequency;
-    int cycles = 0;
-
-    var tunnels = this.attunement2frequency2tunnelMap.get(tunnel);
-    do {
-      newFrequency = (short) this.frequencyGenerator.nextInt(1 << 16);
-      cycles++;
-    } while (newFrequency == 0 || tunnels.containsKey(newFrequency));
-
-    if (cycles > 25) {
-      MAE2.LOGGER
-        .debug("Generating a new MultiP2P frequency '%1$d' took %2$d cycles",
-          newFrequency, cycles);
+  @Override
+  public void debugDump(com.google.gson.stream.JsonWriter writer,
+      net.minecraft.core.HolderLookup.Provider registries) throws java.io.IOException {
+    int tunnels = 0, inputs = 0, outputs = 0;
+    for (var frequencies : attunement2frequency2tunnelMap.values()) {
+      tunnels += frequencies.size();
+      for (var tunnel : frequencies.values()) {
+        inputs += tunnel.getInputs().size();
+        outputs += tunnel.getOutputs().size();
+      }
     }
-    return newFrequency;
+    writer.beginObject();
+    writer.name("tunnels").value(tunnels);
+    writer.name("inputs").value(inputs);
+    writer.name("outputs").value(outputs);
+    writer.name("scheduledTickers").value(tickingQueue.size());
+    writer.name("taxSatisfied").value(taxSatisfied);
+    writer.endObject();
+  }
+
+  public short newFrequency(Class<? extends MultiP2PTunnel<?, ?, ?>> tunnel) {
+    var tunnels = this.attunement2frequency2tunnelMap.get(tunnel);
+    int start = this.frequencyGenerator.nextInt(1, 65536);
+    for (int offset = 0; offset < 65535; offset++) {
+      short frequency = (short) (1 + (start - 1 + offset) % 65535);
+      if (tunnels == null || !tunnels.containsKey(frequency)) return frequency;
+    }
+    throw new IllegalStateException("All Multi P2P frequencies are in use");
   }
 }

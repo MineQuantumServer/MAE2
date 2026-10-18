@@ -28,8 +28,8 @@ import net.minecraft.client.resources.model.Material;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.ChunkRenderTypeSet;
-import net.minecraftforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.ChunkRenderTypeSet;
+import net.neoforged.neoforge.client.model.data.ModelData;
 
 import stone.mae2.MAE2;
 import stone.mae2.block.crafting.DynamicCraftingUnitType;
@@ -97,7 +97,7 @@ public class DynamicCraftingCubeModelProvider
 
     private static Material texture(String namespace, String name) {
         var mat = new Material(TextureAtlas.LOCATION_BLOCKS,
-            new ResourceLocation(namespace, "block/crafting/" + name));
+            ResourceLocation.fromNamespaceAndPath(namespace, "block/crafting/" + name));
         MATERIALS.add(mat);
         return mat;
     }

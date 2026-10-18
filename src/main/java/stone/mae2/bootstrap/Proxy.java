@@ -18,8 +18,8 @@
  */
 package stone.mae2.bootstrap;
 
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.DistExecutor.SafeSupplier;
+import net.neoforged.bus.api.IEventBus;
+
 
 public interface Proxy {
   public void init(IEventBus bus);

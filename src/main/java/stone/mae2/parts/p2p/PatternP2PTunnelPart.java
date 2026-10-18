@@ -10,9 +10,9 @@ import appeng.api.parts.IPartItem;
 import appeng.api.parts.IPartModel;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
-import appeng.capabilities.Capabilities;
+import appeng.api.AECapabilities;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.helpers.patternprovider.PatternProviderTargetCache;
+import stone.mae2.parts.p2p.PatternTargetCache;
 import appeng.items.parts.PartModels;
 import appeng.me.helpers.MachineSource;
 import appeng.parts.p2p.P2PModels;
@@ -25,8 +25,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+
 
 import stone.mae2.MAE2;
 import stone.mae2.parts.p2p.PatternP2PPartLogic.PatternP2PPartLogicHost;
@@ -41,30 +41,30 @@ public class PatternP2PTunnelPart extends P2PTunnelPart<PatternP2PTunnelPart>
   private static final P2PModels MODELS = new P2PModels(MAE2.toKey("part/p2p/p2p_tunnel_pattern"));
 
   protected final IActionSource source;
-  protected final LazyOptional<PatternP2PTunnelLogic> logic;
+  protected final java.util.function.Supplier<PatternP2PTunnelLogic> logic;
 
   // Prevents recursive block updates.
   private boolean inBlockUpdate = false;
-  private PatternProviderTargetCache targetCache;
+  private PatternTargetCache targetCache;
   private final PatternP2PPartLogic partLogic = new PatternP2PPartLogic(this);
 
   public PatternP2PTunnelPart(IPartItem<?> partItem) {
     super(partItem);
     this.source = new MachineSource(this);
     // isOutput() is false because nbt was not read yet
-    this.logic = LazyOptional.of(() -> new PatternP2PTunnelLogic(this));
+    this.logic = com.google.common.base.Suppliers.memoize(() -> new PatternP2PTunnelLogic(this));
   }
 
   @Override
-  public void readFromNBT(CompoundTag data) {
-    super.readFromNBT(data);
-    this.partLogic.readFromNBT(data);
+  public void readFromNBT(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
+    super.readFromNBT(data, registries);
+    this.partLogic.readFromNBT(data, registries);
   }
 
   @Override
-  public void writeToNBT(CompoundTag data) {
-    super.writeToNBT(data);
-    this.partLogic.writeToNBT(data);
+  public void writeToNBT(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
+    super.writeToNBT(data, registries);
+    this.partLogic.writeToNBT(data, registries);
   }
 
   @Override
@@ -74,7 +74,7 @@ public class PatternP2PTunnelPart extends P2PTunnelPart<PatternP2PTunnelPart>
     if (this.isOutput()) {
       PatternP2PTunnelPart input = this.getInput();
       if (input != null) 
-        input.logic.ifPresent(logic -> logic.refreshOutputs());
+        input.logic.get().refreshOutputs();
     }
   }
 
@@ -84,7 +84,7 @@ public class PatternP2PTunnelPart extends P2PTunnelPart<PatternP2PTunnelPart>
     if (this.isOutput()) {
       PatternP2PTunnelPart input = this.getInput();
       if (input != null) 
-        input.logic.ifPresent(logic -> logic.refreshOutputs());
+        input.logic.get().refreshOutputs();
     }
   }
 
@@ -106,7 +106,7 @@ public class PatternP2PTunnelPart extends P2PTunnelPart<PatternP2PTunnelPart>
   }
 
   @Override
-  public PatternProviderTargetCache getCache() { return this.targetCache; }
+  public PatternTargetCache getCache() { return this.targetCache; }
 
   private boolean isRecursive = false;
 
@@ -140,38 +140,17 @@ public class PatternP2PTunnelPart extends P2PTunnelPart<PatternP2PTunnelPart>
     return MODELS.getModel(this.isPowered(), this.isActive());
   }
 
-  @Override
-  public <T> LazyOptional<T> getCapability(Capability<T> capabilityClass) {
-    if (this.isActive() && this.getFrequency() != 0) {
-      if (capabilityClass == Capabilities.CRAFTING_MACHINE && !this.isOutput())
-        return (LazyOptional<T>) logic;
-      if (this.isOutput()) {
-        PatternP2PTunnelPart provider = this.getInput();
-        if (provider == null)
-          return LazyOptional.empty();
-        BlockEntity maybeEntity = this
-          .getLevel()
-          .getBlockEntity(provider.pos());
-        if (maybeEntity != null) {
-          if (maybeEntity instanceof ICraftingProvider
-            || maybeEntity instanceof PatternProviderLogicHost) {
-            return maybeEntity.getCapability(capabilityClass, provider.side());
-          } else if (maybeEntity instanceof IPartHost host) {
-            IPart maybePart = host.getPart(provider.side());
-            if (maybePart != null && (maybePart instanceof ICraftingProvider
-              || maybePart instanceof PatternProviderLogicHost)) {
-              return maybePart.getCapability(capabilityClass);
-            }
-          }
-        }
-      }
-    }
-    return LazyOptional.empty();
+  public <T> T getCapability(BlockCapability<T, Direction> capability) {
+    if (!getMainNode().isActive() || getFrequency() == 0) return null;
+    if (!isOutput()) return capability == AECapabilities.CRAFTING_MACHINE ? (T) logic.get() : null;
+    var input = getInput();
+    if (input == null || !input.level().hasChunkAt(input.pos())) return null;
+    return input.level().getCapability(capability, input.pos(), input.side());
   }
 
   @Override
   public List<Target> getPatternTunnelInputs() {
-    Target input = this.getInput();
+    Target input = this.isOutput() ? this.getInput() : this;
     return input == null ? List.of() : List.of(input);
   }
 

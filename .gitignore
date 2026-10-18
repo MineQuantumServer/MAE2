@@ -31,3 +31,8 @@ forge*changelog.txt
 /.apt_generated_tests/
 
 jar
+/dependencies/
+
+/work/
+
+__pycache__/

@@ -6,8 +6,8 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.gametest.GameTestHolder;
 
 import stone.mae2.MAE2;
 
@@ -21,13 +21,13 @@ public class PatternP2P {
     helper.succeedWhen(() -> {
         // no I don't know why assertContainerContains doesn't work
         BlockEntity barrel = helper.getBlockEntity(new BlockPos(1, 2, 0));
-        barrel
-          .getCapability(ForgeCapabilities.ITEM_HANDLER)
-          .ifPresent(handler -> {
+        var handler = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, barrel.getBlockPos(), null);
+        helper.assertTrue(handler != null, "Missing item capability");
+        {
               helper
                 .assertTrue(handler.getStackInSlot(0).is(Items.LADDER),
                             "Failed to craft");
-            });
+            }
       });
   }
   
@@ -55,12 +55,12 @@ public class PatternP2P {
   public static void singleMultipartBlockingAll(GameTestHelper helper) {
     helper.setBlock(1, 1, 0, AEBlocks.CREATIVE_ENERGY_CELL.block());
     BlockEntity barrel = helper.getBlockEntity(new BlockPos(0, 2, 1));
-    helper.failIfEver(() -> {
-        barrel
-          .getCapability(ForgeCapabilities.ITEM_HANDLER)
-          .ifPresent(handler -> {
+    helper.onEachTick(() -> {
+        var handler = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, barrel.getBlockPos(), null);
+        helper.assertTrue(handler != null, "Missing item capability");
+        {
               helper.assertTrue(handler.getStackInSlot(0).isEmpty(), "\"All Blocking Mode\" was not respected");
-            });
+            }
       });
     helper.runAtTickTime(100, helper::succeed);
   }

@@ -18,11 +18,11 @@
  */
 package stone.mae2.bootstrap;
 
-import net.minecraftforge.common.ForgeConfigSpec;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
-import net.minecraftforge.fml.common.Mod.EventBusSubscriber;
-import net.minecraftforge.fml.config.IConfigSpec;
-import net.minecraftforge.fml.event.config.ModConfigEvent;
+import net.neoforged.neoforge.common.ModConfigSpec;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+
+import net.neoforged.fml.event.config.ModConfigEvent;
 
 import stone.mae2.MAE2;
 import stone.mae2.bootstrap.MAE2Config.TickRates.TickRate;
@@ -45,16 +45,16 @@ public record MAE2Config(Client client, Parts parts, Faulty faulty) {
     MAE2.CONFIG =
       new MAE2Config
       (new Client
-       (CLOUD_CHAMBER_FACTOR.get()),
+       (read(CLOUD_CHAMBER_FACTOR, CLIENT)),
        new Parts
-       (EU_P2P.get(),
-        EU_P2P_NERF.get(),
-        EU_P2P_NERF_FACTOR.get(),
+       (read(EU_P2P, COMMON),
+        read(EU_P2P_NERF, COMMON),
+        read(EU_P2P_NERF_FACTOR, COMMON),
         new TickRates
-        (new TickRate(FE_MIN_RATE.get(), FE_MAX_RATE.get()),
-         new TickRate(EU_MIN_RATE.get(), EU_MAX_RATE.get()),
-         new TickRate(PATTERN_MIN_RATE.get(), PATTERN_MAX_RATE.get()))),
-       new Faulty(UBER_MAX_VOLUME.get()));
+        (new TickRate(read(FE_MIN_RATE, COMMON), read(FE_MAX_RATE, COMMON)),
+         new TickRate(read(EU_MIN_RATE, COMMON), read(EU_MAX_RATE, COMMON)),
+         new TickRate(read(PATTERN_MIN_RATE, COMMON), read(PATTERN_MAX_RATE, COMMON)))),
+       new Faulty(read(UBER_MAX_VOLUME, COMMON)));
   }
 
   // load in things that require a restart here (ie item registation or p2p
@@ -66,6 +66,10 @@ public record MAE2Config(Client client, Parts parts, Faulty faulty) {
   @SubscribeEvent
     static void onload(final ModConfigEvent.Loading event) {
     onLoad();
+  }
+
+  private static <T> T read(ModConfigSpec.ConfigValue<T> value, ModConfigSpec spec) {
+    return spec.isLoaded() ? value.get() : value.getDefault();
   }
 
   public record Client(double cloudChamberFactor) {}
@@ -81,32 +85,32 @@ public record MAE2Config(Client client, Parts parts, Faulty faulty) {
   public record Faulty(int maxUberVolume) {}
 
   // client
-  private static final ForgeConfigSpec.DoubleValue CLOUD_CHAMBER_FACTOR;
+  private static final ModConfigSpec.DoubleValue CLOUD_CHAMBER_FACTOR;
 
   // parts
-  private static final ForgeConfigSpec.BooleanValue EU_P2P;
-  private static final ForgeConfigSpec.BooleanValue EU_P2P_NERF;
-  private static final ForgeConfigSpec.DoubleValue EU_P2P_NERF_FACTOR;
+  private static final ModConfigSpec.BooleanValue EU_P2P;
+  private static final ModConfigSpec.BooleanValue EU_P2P_NERF;
+  private static final ModConfigSpec.DoubleValue EU_P2P_NERF_FACTOR;
 
   // tick rates
-  private static final ForgeConfigSpec.IntValue FE_MIN_RATE;
-  private static final ForgeConfigSpec.IntValue FE_MAX_RATE;
+  private static final ModConfigSpec.IntValue FE_MIN_RATE;
+  private static final ModConfigSpec.IntValue FE_MAX_RATE;
 
-  private static final ForgeConfigSpec.IntValue EU_MIN_RATE;
-  private static final ForgeConfigSpec.IntValue EU_MAX_RATE;
+  private static final ModConfigSpec.IntValue EU_MIN_RATE;
+  private static final ModConfigSpec.IntValue EU_MAX_RATE;
 
-  private static final ForgeConfigSpec.IntValue PATTERN_MIN_RATE;
-  private static final ForgeConfigSpec.IntValue PATTERN_MAX_RATE;
+  private static final ModConfigSpec.IntValue PATTERN_MIN_RATE;
+  private static final ModConfigSpec.IntValue PATTERN_MAX_RATE;
 
   // faulty card modes
-  private static final ForgeConfigSpec.IntValue UBER_MAX_VOLUME;
+  private static final ModConfigSpec.IntValue UBER_MAX_VOLUME;
 
-  public static final IConfigSpec<?> CLIENT;
-  public static final IConfigSpec<?> COMMON;
+  public static final ModConfigSpec CLIENT;
+  public static final ModConfigSpec COMMON;
 
   static {
-    ForgeConfigSpec.Builder client = new ForgeConfigSpec.Builder();
-    ForgeConfigSpec.Builder common = new ForgeConfigSpec.Builder();
+    ModConfigSpec.Builder client = new ModConfigSpec.Builder();
+    ModConfigSpec.Builder common = new ModConfigSpec.Builder();
 
     client.push("Visual");
     CLOUD_CHAMBER_FACTOR = client

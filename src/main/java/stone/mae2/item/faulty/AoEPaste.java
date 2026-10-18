@@ -50,7 +50,7 @@ public class AoEPaste extends FaultyCardMode {
     
     @Override
     protected FaultyCardMode load(CompoundTag tag) {
-    	this.radius = tag.getByte(RADIUS);
+        this.radius = (byte) Math.clamp(tag.getByte(RADIUS), 1, MAX_RADIUS);
     	return this;
     }
     
@@ -65,7 +65,7 @@ public class AoEPaste extends FaultyCardMode {
     public InteractionResultHolder<ItemStack> onItemUse(Level level, Player player, InteractionHand hand) {
         ItemStack stack = player.getItemInHand(hand);
         radius = (byte) (radius >= MAX_RADIUS ? 1 : radius + 1);
-        this.save(stack.getOrCreateTag());
+        this.save(stack);
         player.displayClientMessage(Component.translatable(TransHelper.GUI.toKey("faulty", "radius"), 2 * radius + 1), true);
         return InteractionResultHolder.consume(stack);
     }
@@ -77,7 +77,6 @@ public class AoEPaste extends FaultyCardMode {
         if (be instanceof IPartHost partHost) {
             SelectedPart selectedPart = partHost.selectPartWorld(context.getClickLocation());
             if (selectedPart.part != null && selectedPart.side != null && stack.getItem() instanceof IMemoryCard card) {
-                CompoundTag data = card.getData(stack);
                 // 0 if it's along the normal of the plane of AoE
                 // (the methods are accessing the normal variable)
                 int x = selectedPart.side.getStepX() != 0 ? 0 : 1;
@@ -88,12 +87,14 @@ public class AoEPaste extends FaultyCardMode {
                 for (int i = -radius * x; i <= radius * x; i++) {
                     for (int j = -radius * y; j <= radius * y; j++) {
                         for (int k = -radius * z; k <= radius * z; k++) {
-                            BlockEntity aoeBE = level.getBlockEntity(clicked.offset(i, j, k));
+                            BlockPos target = clicked.offset(i, j, k);
+                            if (!level.hasChunkAt(target)) continue;
+                            BlockEntity aoeBE = level.getBlockEntity(target);
                             if (aoeBE instanceof IPartHost aoePartHost) {
                                 IPart part = aoePartHost.getPart(selectedPart.side);
                                 if (part != null) {
                                     // no idea what the Vec pos argument does here, doesn't seem used in any implementation
-                                    part.onActivate(context.getPlayer(), context.getHand(), context.getClickLocation());
+                                    part.onUseItemOn(stack, context.getPlayer(), context.getHand(), context.getClickLocation());
                                 }
                             }
                         }

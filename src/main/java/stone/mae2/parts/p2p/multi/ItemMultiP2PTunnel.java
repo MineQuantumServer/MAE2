@@ -28,10 +28,11 @@ import appeng.api.stacks.AEKeyType;
 import appeng.items.parts.PartModels;
 import appeng.parts.p2p.P2PModels;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.items.IItemHandler;
-import net.minecraftforge.items.ItemHandlerHelper;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.minecraft.core.Direction;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.items.ItemHandlerHelper;
 import stone.mae2.MAE2;
 
 public class ItemMultiP2PTunnel extends CapabilityMultiP2PTunnel<ItemMultiP2PTunnel, ItemMultiP2PTunnel.Logic, ItemMultiP2PTunnel.Part, IItemHandler> {
@@ -104,7 +105,7 @@ public class ItemMultiP2PTunnel extends CapabilityMultiP2PTunnel<ItemMultiP2PTun
       }
 
       final int amountPerOutput = amount / outputTunnels;
-      int overflow = amountPerOutput == 0 ? amount : amount % amountPerOutput;
+      int overflow = amount % outputTunnels;
 
       for (Logic output : ItemMultiP2PTunnel.this.getOutputs()) {
         try (var capabilityGuard = output.getAdjacentCapability()) {
@@ -266,8 +267,8 @@ public class ItemMultiP2PTunnel extends CapabilityMultiP2PTunnel<ItemMultiP2PTun
   }
 
   @Override
-  protected Capability<IItemHandler> getCapability() {
-    return ForgeCapabilities.ITEM_HANDLER;
+  protected BlockCapability<IItemHandler, Direction> getCapability() {
+    return Capabilities.ItemHandler.BLOCK;
   }
 
   @Override

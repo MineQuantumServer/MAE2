@@ -24,9 +24,9 @@ import appeng.items.parts.PartItem;
 import appeng.items.parts.PartModelsHelper;
 import net.minecraft.Util;
 import net.minecraft.world.item.Item;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import stone.mae2.MAE2;
 import stone.mae2.api.features.MultiP2PTunnelAttunement;
@@ -35,12 +35,12 @@ import stone.mae2.parts.p2p.EUP2PTunnelPart;
 import stone.mae2.parts.p2p.multi.EUMultiP2PTunnel;
 
 public abstract class GregTechIntegration {
-  public static RegistryObject<PartItem<EUP2PTunnelPart>> EU_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<EUP2PTunnelPart>> EU_P2P_TUNNEL;
 
-  public static RegistryObject<PartItem<EUMultiP2PTunnel.Part>> EU_MULTI_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<EUMultiP2PTunnel.Part>> EU_MULTI_P2P_TUNNEL;
 
   public static void init(IEventBus bus) {
-    if (MAE2.CONFIG.parts().isEUP2PEnabled()) {
+    {
       EU_P2P_TUNNEL = Util.make(() -> {
         PartModels
           .registerModels(PartModelsHelper.createModels(EUP2PTunnelPart.class));

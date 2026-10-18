@@ -11,9 +11,9 @@ import appeng.api.parts.IPartItem;
 import appeng.api.parts.IPartModel;
 import appeng.api.stacks.AEItemKey;
 import appeng.api.stacks.AEKey;
-import appeng.capabilities.Capabilities;
+import appeng.api.AECapabilities;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
-import appeng.helpers.patternprovider.PatternProviderTargetCache;
+import stone.mae2.parts.p2p.PatternTargetCache;
 import appeng.hooks.ticking.TickHandler;
 import appeng.items.parts.PartModels;
 import appeng.me.helpers.MachineSource;
@@ -26,8 +26,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+
 
 import stone.mae2.MAE2;
 import stone.mae2.parts.p2p.PatternP2PPartLogic;
@@ -136,33 +136,14 @@ public class PatternMultiP2PTunnel extends
       super(part);
     }
 
-    public <T> LazyOptional<T> getCapability(Capability<T> capabilityClass) {
-      if (capabilityClass == Capabilities.CRAFTING_MACHINE && !this.part.isOutput())
-        return (LazyOptional<T>) LazyOptional
-          .of(() -> PatternMultiP2PTunnel.this.logic);
-      if (this.part.isOutput()) {
-        List<? extends Target> inputList = PatternMultiP2PTunnel.this
-          .getPatternTunnelInputs();
-        if (inputList.isEmpty())
-          return LazyOptional.empty();
-        Target provider = inputList.get(0);
-        if (provider == null)
-          return LazyOptional.empty();
-        BlockEntity maybeEntity = provider.getTargetBlockEntity();
-        if (maybeEntity != null) {
-          if (maybeEntity instanceof ICraftingProvider
-            || maybeEntity instanceof PatternProviderLogicHost) {
-            return maybeEntity.getCapability(capabilityClass, provider.side());
-          } else if (maybeEntity instanceof IPartHost host) {
-            IPart maybePart = host.getPart(provider.side());
-            if (maybePart != null && (maybePart instanceof ICraftingProvider
-              || maybePart instanceof PatternProviderLogicHost)) {
-              return maybePart.getCapability(capabilityClass);
-            }
-          }
-        }
-      }
-      return LazyOptional.empty();
+    public <T> T getCapability(BlockCapability<T, Direction> capability) {
+      if (!this.part.isOutput()) return capability == AECapabilities.CRAFTING_MACHINE
+          ? (T) PatternMultiP2PTunnel.this.logic : null;
+      var inputs = PatternMultiP2PTunnel.this.getPatternTunnelInputs();
+      if (inputs.isEmpty()) return null;
+      var input = inputs.getFirst();
+      if (!input.level().hasChunkAt(input.pos())) return null;
+      return input.level().getCapability(capability, input.pos(), input.side());
     }
 
         /**
@@ -230,7 +211,7 @@ public class PatternMultiP2PTunnel extends
         inBlockUpdate = true;
 
         try {
-          if (this.part.isOutput()) {
+          if (!this.part.isOutput()) {
             for (var output : PatternMultiP2PTunnel.this.getOutputs()) {
               output.sendBlockUpdate();
             }
@@ -254,7 +235,7 @@ public class PatternMultiP2PTunnel extends
     protected final IActionSource source;
 
     private final PatternP2PPartLogic partLogic = new PatternP2PPartLogic(this);
-    private PatternProviderTargetCache cache;
+    private PatternTargetCache cache;
 
     public Part(IPartItem<?> partItem) {
       super(partItem);
@@ -266,15 +247,15 @@ public class PatternMultiP2PTunnel extends
     }
 
     @Override
-    public void readFromNBT(CompoundTag data) {
-      super.readFromNBT(data);
-      this.partLogic.readFromNBT(data);
+    public void readFromNBT(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
+      super.readFromNBT(data, registries);
+      this.partLogic.readFromNBT(data, registries);
     }
 
     @Override
-    public void writeToNBT(CompoundTag data) {
-      super.writeToNBT(data);
-      this.partLogic.writeToNBT(data);
+    public void writeToNBT(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
+      super.writeToNBT(data, registries);
+      this.partLogic.writeToNBT(data, registries);
     }
 
     @Override
@@ -300,12 +281,9 @@ public class PatternMultiP2PTunnel extends
       return PatternMultiP2PTunnel.class;
     }
 
-    @Override
-    public <T> LazyOptional<T> getCapability(Capability<T> capabilityClass) {
-      Optional<PatternMultiP2PTunnel.Logic> logic = this.getLogic();
-      if (logic.isPresent())
-        return logic.get().getCapability(capabilityClass);
-      return LazyOptional.empty();
+    public <T> T getCapability(BlockCapability<T, Direction> capability) {
+      var logic = getLogic();
+      return logic.isPresent() ? logic.get().getCapability(capability) : null;
     }
 
     @Override
@@ -349,7 +327,7 @@ public class PatternMultiP2PTunnel extends
     }
 
     @Override
-    public PatternProviderTargetCache getCache() { return this.cache; }
+    public PatternTargetCache getCache() { return this.cache; }
   }
 
 }

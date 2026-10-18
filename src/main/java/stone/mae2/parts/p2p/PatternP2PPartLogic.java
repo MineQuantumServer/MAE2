@@ -9,7 +9,7 @@ import appeng.api.networking.ticking.TickingRequest;
 import appeng.api.stacks.AEKey;
 import appeng.api.stacks.GenericStack;
 import appeng.helpers.patternprovider.PatternProviderTarget;
-import appeng.helpers.patternprovider.PatternProviderTargetCache;
+import stone.mae2.parts.p2p.PatternTargetCache;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
@@ -39,7 +39,7 @@ public class PatternP2PPartLogic implements IGridTickable {
   public TickingRequest getTickingRequest(IGridNode node) {
     TickRate rate = MAE2.CONFIG.parts().rates().PatternP2PTunnel();
     return new TickingRequest(rate.minRate(), rate.maxRate(),
-      this.sendList.isEmpty(), true);
+      this.sendList.isEmpty());
   }
 
   @Override
@@ -49,7 +49,7 @@ public class PatternP2PPartLogic implements IGridTickable {
       return TickRateModulation.SLEEP;
     if (!this.part.getMainNode().isActive())
       return TickRateModulation.IDLE;
-    PatternProviderTargetCache cache = this.part.getCache();
+    PatternTargetCache cache = this.part.getCache();
     if (cache == null) {
       return TickRateModulation.IDLE;
     }
@@ -75,6 +75,7 @@ public class PatternP2PPartLogic implements IGridTickable {
       }
     }
 
+    if (didSomething) this.part.getBlockEntity().setChanged();
     if (sendList.isEmpty()) {
       return TickRateModulation.SLEEP;
     }
@@ -92,6 +93,7 @@ public class PatternP2PPartLogic implements IGridTickable {
     boolean wasEmpty = this.sendList.isEmpty();
     if (l > 0) {
       this.sendList.add(new GenericStack(what, l));
+      this.part.getBlockEntity().setChanged();
       if (wasEmpty) {
         this.part
           .getMainNode()
@@ -109,20 +111,21 @@ public class PatternP2PPartLogic implements IGridTickable {
     }
   }
 
-  public void readFromNBT(CompoundTag data) {
+  public void readFromNBT(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
+    sendList.clear();
     var sendListTag = data.getList(NBT_SEND_LIST, Tag.TAG_COMPOUND);
     for (int i = 0; i < sendListTag.size(); ++i) {
-      var stack = GenericStack.readTag(sendListTag.getCompound(i));
+      var stack = GenericStack.readTag(registries, sendListTag.getCompound(i));
       if (stack != null) {
         this.addToSendList(stack.what(), stack.amount());
       }
     }
   }
 
-  public void writeToNBT(CompoundTag data) {
+  public void writeToNBT(CompoundTag data, net.minecraft.core.HolderLookup.Provider registries) {
     ListTag sendListTag = new ListTag();
     for (var toSend : sendList) {
-      sendListTag.add(GenericStack.writeTag(toSend));
+      sendListTag.add(GenericStack.writeTag(registries, toSend));
     }
     data.put(NBT_SEND_LIST, sendListTag);
   }

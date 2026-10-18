@@ -42,7 +42,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.model.data.ModelData;
+import net.neoforged.neoforge.client.model.data.ModelData;
 
 import appeng.api.implementations.items.IMemoryCard;
 import appeng.api.util.AEColor;
@@ -154,7 +154,9 @@ class FaultyCardBakedModel implements BakedModel {
                     LivingEntity entity, int seed) {
                 try {
                     if (stack.getItem() instanceof IMemoryCard memoryCard) {
-                        final AEColor[] colors = memoryCard.getColorCode(stack);
+                        var saved = stack.getOrDefault(appeng.api.ids.AEComponents.MEMORY_CARD_COLORS, appeng.api.implementations.items.MemoryCardColors.DEFAULT);
+                        final AEColor[] colors = new AEColor[8];
+                        for (int i = 0; i < 8; i++) colors[i] = saved.get(i % 4, i / 4);
 
                         return FaultyCardBakedModel.this.modelCache.get(new CacheKey(colors),
                                 () -> new FaultyCardBakedModel(FaultyCardBakedModel.this.baseModel,

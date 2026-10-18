@@ -1,3 +1,8 @@
+> **Minecraft 1.21.1 / NeoForge 移植分支**：`dot/mae2-1.21.1-neoforge`。
+> 使用官方 AE2 19.2.18 和指定 FortyTwoCn GT 源码构建的8.0.0；前置不能按同名版本随意替换。
+> [准备、构建、安装和测试](docs/BUILDING-1.21.1.md) · [功能验收、依赖基线与行为差异](docs/PORTING-1.21.1.md) · [依赖锁定](dependencies.lock.json)。
+> 从干净环境执行 `python3 scripts/prepare_dependencies.py`，然后 `./gradlew clean build`；需要 JDK21、Python3.11+、Git和网络。
+
 # Modern AE2 Additions
 A mod all about random additions. Mainly going to be whatever I feel like adding to the game to help with AE2.
 

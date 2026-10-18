@@ -25,9 +25,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegisterEvent;
+import net.neoforged.bus.api.IEventBus;
+import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.registries.RegisterEvent;
 
 public abstract class MAE2BlockEntities {
 
@@ -36,7 +36,7 @@ public abstract class MAE2BlockEntities {
     public static void init(IEventBus bus) {
         bus.addListener((RegisterEvent event) ->
         {
-            event.register(ForgeRegistries.Keys.BLOCK_ENTITY_TYPES, helper ->
+            event.register(Registries.BLOCK_ENTITY_TYPE, helper ->
             {
                 DENSE_ACCELERATOR = BlockEntityType.Builder
                     .of((BlockPos pos,
@@ -44,7 +44,7 @@ public abstract class MAE2BlockEntities {
                         MAE2Blocks.ACCELERATOR_4x.get(), MAE2Blocks.ACCELERATOR_16x.get(),
                         MAE2Blocks.ACCELERATOR_64x.get(), MAE2Blocks.ACCELERATOR_256x.get())
                     .build(null);
-                helper.register("dense_accelerator", DENSE_ACCELERATOR);
+                helper.register(stone.mae2.MAE2.toKey("dense_accelerator"), DENSE_ACCELERATOR);
 
                 BlockEntityTicker<CraftingBlockEntity> serverTicker = null;
                 if (ServerTickingBlockEntity.class.isAssignableFrom(CraftingBlockEntity.class))

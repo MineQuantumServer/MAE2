@@ -13,8 +13,7 @@ public interface Tickable {
 
   public static TickingRequest toTickingRequest(TickRate rate,
     boolean isSleeping, boolean canBeAlerted) {
-    return new TickingRequest(rate.minRate(), rate.maxRate(), isSleeping,
-      canBeAlerted);
+    return new TickingRequest(rate.minRate(), rate.maxRate(), isSleeping);
   }
 
   public static class TickingEntry implements Comparable<TickingEntry> {

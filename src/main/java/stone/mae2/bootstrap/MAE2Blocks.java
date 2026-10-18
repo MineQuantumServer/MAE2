@@ -25,10 +25,10 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import stone.mae2.MAE2;
 import stone.mae2.block.CloudChamberBlock;
@@ -37,16 +37,16 @@ import stone.mae2.block.crafting.DynamicCraftingUnitType;
 
 public abstract class MAE2Blocks {
   static final DeferredRegister<Block> BLOCKS = DeferredRegister
-    .create(ForgeRegistries.BLOCKS, MAE2.MODID);
+    .create(Registries.BLOCK, MAE2.MODID);
   static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister
-    .create(ForgeRegistries.BLOCK_ENTITY_TYPES, MAE2.MODID);
+    .create(Registries.BLOCK_ENTITY_TYPE, MAE2.MODID);
 
-  public static RegistryObject<CraftingUnitBlock> ACCELERATOR_4x;
-  public static RegistryObject<CraftingUnitBlock> ACCELERATOR_16x;
-  public static RegistryObject<CraftingUnitBlock> ACCELERATOR_64x;
-  public static RegistryObject<CraftingUnitBlock> ACCELERATOR_256x;
+  public static DeferredHolder<Block, CraftingUnitBlock> ACCELERATOR_4x;
+  public static DeferredHolder<Block, CraftingUnitBlock> ACCELERATOR_16x;
+  public static DeferredHolder<Block, CraftingUnitBlock> ACCELERATOR_64x;
+  public static DeferredHolder<Block, CraftingUnitBlock> ACCELERATOR_256x;
 
-  public static RegistryObject<CloudChamberBlock> CLOUD_CHAMBER;
+  public static DeferredHolder<Block, CloudChamberBlock> CLOUD_CHAMBER;
 
   public static void init(IEventBus bus) {
     BLOCKS.register(bus);
@@ -97,7 +97,7 @@ public abstract class MAE2Blocks {
           new Item.Properties(), () -> AEBlocks.CRAFTING_ACCELERATOR.asItem(),
           () -> AEItems.CELL_COMPONENT_256K.asItem()));
 
-    CLOUD_CHAMBER = BLOCKS.register("cloud_chamber", CloudChamberBlock::new);
+    CLOUD_CHAMBER = BLOCKS.register("cloud_chamber", () -> new CloudChamberBlock());
     MAE2Items.CLOUD_CHAMBER = MAE2Items.ITEMS
       .register("cloud_chamber",
         () -> new BlockItem(CLOUD_CHAMBER.get(), new Item.Properties()));

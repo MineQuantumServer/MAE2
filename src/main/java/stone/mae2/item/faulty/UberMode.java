@@ -1,25 +1,12 @@
 package stone.mae2.item.faulty;
 
-import org.joml.Matrix4f;
 
-import com.lowdragmc.lowdraglib.utils.ColorUtils;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import appeng.api.parts.IPart;
 import appeng.api.parts.IPartHost;
 import appeng.api.parts.SelectedPart;
 import appeng.api.util.AEColor;
 import appeng.block.AEBaseEntityBlock;
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.renderer.LevelRenderer;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
@@ -39,10 +26,7 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraftforge.client.event.RenderHighlightEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent;
-import net.minecraftforge.client.event.RenderLevelStageEvent.Stage;
-import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.neoforged.bus.api.SubscribeEvent;
 import stone.mae2.MAE2;
 import stone.mae2.bootstrap.MAE2Config;
 import stone.mae2.bootstrap.MAE2Items;
@@ -60,7 +44,7 @@ public class UberMode extends FaultyCardMode {
   public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext context) {
     if (this.start == null) {
       this.start = context.getClickedPos();
-      this.save(stack.getOrCreateTag());
+      this.save(stack);
       context.getPlayer().displayClientMessage(Component.translatable(TransHelper.GUI.toKey("faulty", "uber", "start")), true);
       return InteractionResult.CONSUME;
     } else {
@@ -73,6 +57,7 @@ public class UberMode extends FaultyCardMode {
         SelectedPart selectedPart = originalHost.selectPartWorld(context.getClickLocation());
         side = selectedPart.side;
       }
+      if (side == null) return InteractionResult.PASS;
       if (!isVolumeValid(end)) {
         player.displayClientMessage(TransHelper.GUI.translatable("faulty.uber.failed"), true);
       } else {
@@ -80,15 +65,16 @@ public class UberMode extends FaultyCardMode {
         InteractionHand hand = context.getHand();
         Vec3 clickLocation = context.getClickLocation();
         for (BlockPos pos : BlockPos.betweenClosed(start, end)) {
+          if (!level.hasChunkAt(pos)) continue;
           BlockState state = level.getBlockState(pos);
           if (level.getBlockEntity(pos) instanceof IPartHost aoePartHost) {
               IPart part = aoePartHost.getPart(side);
               if (part != null) {
                 // no idea what the Vec pos argument does here, doesn't seem used in any implementation
-                failed |= !part.onActivate(player, hand, clickLocation);
+                failed |= !part.onUseItemOn(stack, player, hand, clickLocation);
               }
           } else if (state.getBlock() instanceof AEBaseEntityBlock baseBlock) {
-            baseBlock.use(state, level, pos, player, hand, new BlockHitResult(clickLocation, side, pos, false));
+            state.useItemOn(stack, level, player, hand, new BlockHitResult(clickLocation, side, pos, false));
           }
         }
 
@@ -99,7 +85,7 @@ public class UberMode extends FaultyCardMode {
         }
       }
       this.start = null;
-      this.save(stack.getOrCreateTag());
+      this.save(stack);
       return InteractionResult.CONSUME;
     }
   }
@@ -107,16 +93,14 @@ public class UberMode extends FaultyCardMode {
   @Override
   public InteractionResult onItemSecondaryUseFirst(ItemStack stack, UseOnContext context) {
     this.start = null;
-    this.save(stack.getOrCreateTag());
+    this.save(stack);
     return InteractionResult.PASS;
   }
 
   public boolean isVolumeValid(BlockPos end) {
-    int width = Math.abs(start.getX() - end.getX());
-    int height = Math.abs(start.getY() - end.getY());
-    int depth = Math.abs(start.getZ() - end.getZ());
-    int volume = width * height * depth;
-    return volume <= MAE2.CONFIG.faulty().maxUberVolume();
+    if (start == null) return false;
+    return stone.mae2.util.TransferMath.volumeWithin(start.getX(), start.getY(), start.getZ(),
+        end.getX(), end.getY(), end.getZ(), MAE2.CONFIG.faulty().maxUberVolume());
   }
 
   @Override
@@ -146,55 +130,11 @@ public class UberMode extends FaultyCardMode {
     return AEColor.LIGHT_BLUE.mediumVariant;
 	}
 
-  // TODO: move this to main faulty card class so others could utilize it
-  @SubscribeEvent
-  public static void onRenderLevel(RenderLevelStageEvent event) {
-    if (event.getStage() != Stage.AFTER_SOLID_BLOCKS)
-      return;
-    Minecraft client = Minecraft.getInstance();
-    LocalPlayer player = client.player;
-    ItemStack main = player.getMainHandItem();
-    if (main.isEmpty()) {
-      main = player.getOffhandItem();
-    }
-    if (!main.isEmpty() && main.getItem() == MAE2Items.FAULTY_MEMORY_CARD.get()) {
-      FaultyCardMode mode = FaultyCardMode.of(main);
-      if (mode instanceof UberMode uber) {
-        BlockHitResult hit = rayTrace(player.level(), player);
-        if (uber.start != null && hit.getType() == HitResult.Type.BLOCK) {
-          BlockPos end = hit.getBlockPos();
-          // rendering stuff I kinda understand
-          PoseStack poses = event.getPoseStack();
-          poses.pushPose();
-          Vec3 camera = event.getCamera().getPosition();
-          poses.translate(-camera.x, -camera.y, -camera.z);
-          // this automatically figures out how to fit the entire corner blocks
-          // into the bounding box
-          BoundingBox box = BoundingBox.fromCorners(end, uber.start);
-          int color = uber.isVolumeValid(end) ? AEColor.LIGHT_BLUE.mediumVariant : AEColor.RED.mediumVariant;
-          float red   = ((color & 0xFF0000) >> 16) / 255f;
-          float green = ((color & 0x00FF00) >>  8) / 255f;
-          float blue  = ((color & 0x0000FF) >>  0) / 255f;
-
-          // what is a tesselator? idk, but this lets me render stuff
-          // feel like this should be bad, but idk. Should only be a problem when
-          // rendering the box anyways
-          BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
-          MultiBufferSource.BufferSource buffer = MultiBufferSource.immediate(bufferBuilder);
-          VertexConsumer consumer = buffer.getBuffer(RenderType.lines());
-          // inflate by tiny bit to prevent z-fighting
-          AABB aabb = AABB.of(box).inflate(0.01);
-          LevelRenderer.renderLineBox(poses, consumer, aabb, red, green, blue, 1);
-          buffer.endBatch();
-          poses.popPose();
-        }
-      }
-    }
-  }
+  public BlockPos getStart() { return start; }
 
   // TODO move this to a shared utils class
   public static BlockHitResult rayTrace(Level level, Player player) {
-    return rayTrace(level, player, player.getBlockReach());
+    return rayTrace(level, player, player.blockInteractionRange());
   }
   // stolen with permission from Spatial Tools Compatiable
   public static BlockHitResult rayTrace(Level level, Player player, double maxDistance) {

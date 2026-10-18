@@ -44,7 +44,7 @@ public abstract class FaultyCardMode {
 
     public static FaultyCardMode of(ItemStack stack) {
         CompoundTag data = getData(stack);
-        var supplier = REGISTRY.get(ResourceLocation.parse(data.getString(MODE_TYPE)));
+        var supplier = REGISTRY.get(ResourceLocation.tryParse(data.getString(MODE_TYPE)));
         if (supplier == null) {
             return new AoEPaste();
         } else {
@@ -56,8 +56,8 @@ public abstract class FaultyCardMode {
      * Extract out the {@link CompoundTag} for this {@link FaultyMemoryCardItem}'s data
      */ 
     public static CompoundTag getData(ItemStack stack) {
-        CompoundTag tag = stack.getTag();
-        return tag == null ? new CompoundTag() : tag.getCompound(FAULTY_DATA);
+        var component = stack.get(stone.mae2.bootstrap.MAE2Components.FAULTY_DATA.get());
+        return component == null ? new CompoundTag() : component.copyTag().getCompound(FAULTY_DATA);
     }
 
     public static void register(ResourceLocation key, Supplier<FaultyCardMode> supplier) {
@@ -67,7 +67,7 @@ public abstract class FaultyCardMode {
 
     @Deprecated
     public static void register(String namespace, String path, Supplier<FaultyCardMode> supplier) {
-        register(new ResourceLocation(namespace, path), supplier);
+        register(ResourceLocation.fromNamespaceAndPath(namespace, path), supplier);
     }
 
     // I don't like this, but it works. Really should be static somehow
@@ -115,6 +115,12 @@ public abstract class FaultyCardMode {
      * @param tag
      * @return
      */
+    public final void save(ItemStack stack) {
+        CompoundTag root = new CompoundTag();
+        save(root);
+        stack.set(stone.mae2.bootstrap.MAE2Components.FAULTY_DATA.get(), net.minecraft.world.item.component.CustomData.of(root));
+    }
+
     public CompoundTag save(CompoundTag tag) {
         CompoundTag data = new CompoundTag();
         data.putString(MODE_TYPE, getType().toString());

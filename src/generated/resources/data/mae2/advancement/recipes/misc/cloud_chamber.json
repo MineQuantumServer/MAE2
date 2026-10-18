@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "mae2:cloud_chamber"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    },
+    "has_vibrant_glass": {
+      "conditions": {
+        "items": [
+          {
+            "items": "ae2:quartz_vibrant_glass"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_vibrant_glass"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "mae2:cloud_chamber"
+    ]
+  }
+}

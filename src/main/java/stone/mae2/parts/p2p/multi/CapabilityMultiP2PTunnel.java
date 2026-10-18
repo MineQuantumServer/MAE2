@@ -23,8 +23,10 @@ import appeng.api.parts.IPartItem;
 import appeng.hooks.ticking.TickHandler;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.BlockGetter;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.minecraft.core.Direction;
+import appeng.parts.PartAdjacentApi;
+
 
 /**
  * Base class for simple capability-based p2p tunnels. Don't forget to set the 3
@@ -32,7 +34,7 @@ import net.minecraftforge.common.util.LazyOptional;
  */
 public abstract class CapabilityMultiP2PTunnel<T extends CapabilityMultiP2PTunnel<T, L, P, C>, L extends CapabilityMultiP2PTunnel<T, L, P, C>.Logic, P extends CapabilityMultiP2PTunnel.Part<T, L, P, C>, C>
   extends MultiP2PTunnel<T, L, P> {
-  protected abstract Capability<C> getCapability();
+  protected abstract BlockCapability<C, Direction> getCapability();
 
   protected C inputHandler;
   protected C outputHandler;
@@ -44,22 +46,26 @@ public abstract class CapabilityMultiP2PTunnel<T extends CapabilityMultiP2PTunne
 
   public class Logic extends MultiP2PTunnel<T, L, P>.Logic {
     private final CapabilityGuard capabilityGuard = new CapabilityGuard();
+    private C exposed;
 
     public Logic(P part) {
       super(part);
     }
 
-    public final <A> LazyOptional<A> getCapability(
-      Capability<A> capabilityClass) {
-      if (capabilityClass == CapabilityMultiP2PTunnel.this.getCapability()) {
-        if (this.part.isOutput()) {
-          return LazyOptional.of(() -> outputHandler).cast();
-        } else {
-          return LazyOptional.of(() -> inputHandler).cast();
-        }
-      }
-      return LazyOptional.empty();
+    public final <A> A getCapability(BlockCapability<A, Direction> capability) {
+      if (capability != CapabilityMultiP2PTunnel.this.getCapability()) return null;
+      if (exposed == null) exposed = stone.mae2.util.GuardedApi.create(
+          CapabilityMultiP2PTunnel.this.getCapability().typeClass(), part.isOutput() ? outputHandler : inputHandler,
+          emptyHandler, () -> part.getLogic().orElse(null) == this, part.getSide());
+      return (A) exposed;
+    }
 
+    private final PartAdjacentApi<C> adjacent = new PartAdjacentApi<>(part,
+        CapabilityMultiP2PTunnel.this.getCapability(), this::forwardInvalidation);
+
+    private void forwardInvalidation() {
+      for (var input : getInputs()) input.part.getBlockEntity().invalidateCapabilities();
+      for (var output : getOutputs()) output.part.getBlockEntity().invalidateCapabilities();
     }
 
     /**
@@ -86,15 +92,8 @@ public abstract class CapabilityMultiP2PTunnel<T extends CapabilityMultiP2PTunne
             "get was called after closing the wrapper");
         } else if (accessDepth == 1) {
           if (Logic.this.part.isActive()) {
-            var self = Logic.this.part.getBlockEntity();
-            var te = self.getLevel().getBlockEntity(getFacingPos());
-
-            if (te != null) {
-              return te
-                .getCapability(CapabilityMultiP2PTunnel.this.getCapability(),
-                  Logic.this.part.getSide().getOpposite())
-                .orElse(emptyHandler);
-            }
+            C value = adjacent.find();
+            return value == null ? emptyHandler : value;
           }
 
           return emptyHandler;
@@ -157,7 +156,8 @@ public abstract class CapabilityMultiP2PTunnel<T extends CapabilityMultiP2PTunne
       // to send a block update then, so
       // we delay it until the next tick.
       TickHandler.instance().addCallable(this.part.getLevel(), () -> {
-        if (this.part.getMainNode().isReady()) { // Check that the p2p tunnel is
+        if (this.part.getMainNode().isReady()) {
+          this.part.getBlockEntity().invalidateCapabilities(); // Check that the p2p tunnel is
                                                  // still there.
           sendBlockUpdate();
         }
@@ -181,7 +181,7 @@ public abstract class CapabilityMultiP2PTunnel<T extends CapabilityMultiP2PTunne
         inBlockUpdate = true;
 
         try {
-          if (this.part.isOutput()) {
+          if (!this.part.isOutput()) {
             for (var output : CapabilityMultiP2PTunnel.this.getOutputs()) {
               output.sendBlockUpdate();
             }
@@ -206,15 +206,9 @@ public abstract class CapabilityMultiP2PTunnel<T extends CapabilityMultiP2PTunne
     @Override
     protected float getPowerDrainPerTick() { return 2.0f; }
 
-    @Override
-    public final <A> LazyOptional<A> getCapability(
-      Capability<A> capabilityClass) {
+    public final <A> A getCapability(BlockCapability<A, Direction> capability) {
       var logic = this.getLogic();
-      if (logic.isPresent()) {
-        return logic.get().getCapability(capabilityClass);
-      } else {
-        return LazyOptional.empty();
-      }
+      return logic.isPresent() ? logic.get().getCapability(capability) : null;
     }
 
     public void onNeighborChanged(BlockGetter level, BlockPos pos,

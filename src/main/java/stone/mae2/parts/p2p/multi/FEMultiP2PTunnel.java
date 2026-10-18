@@ -18,7 +18,7 @@
  */
 package stone.mae2.parts.p2p.multi;
 
-import appeng.api.config.PowerUnits;
+import appeng.api.config.PowerUnit;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.ticking.TickRateModulation;
 import appeng.api.networking.ticking.TickingRequest;
@@ -28,11 +28,13 @@ import appeng.items.parts.PartModels;
 import appeng.parts.p2p.P2PModels;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.minecraft.core.Direction;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.energy.IEnergyStorage;
 
 import stone.mae2.MAE2;
+import stone.mae2.util.TransferMath;
 import stone.mae2.api.Tickable;
 
 import java.util.List;
@@ -51,7 +53,7 @@ public class FEMultiP2PTunnel extends
    * quadratic
    */
   // Persisted
-  private long buffer;
+  private final stone.mae2.util.SharedEnergy buffer = new stone.mae2.util.SharedEnergy();
 
   /**
    * How much FE has been extracted in between distributions
@@ -60,7 +62,7 @@ public class FEMultiP2PTunnel extends
    * the outputs of the tunnel. This'd bypass the normal distribution logic, and
    * thus needs to be accounted for.
    */
-  private long extracted;
+  private final stone.mae2.util.SharedEnergy extracted = new stone.mae2.util.SharedEnergy();
 
   /**
    * Flag for if we have enough FE in the buffer for another distribution
@@ -84,18 +86,27 @@ public class FEMultiP2PTunnel extends
     CompoundTag data = super.saveNodeData(part);
     if (data == null)
       data = new CompoundTag();
-    // grid seems to remove part before calling this, hence +1
-    long split = this.buffer / (this.inputs.size() + 1);
-    this.buffer -= split;
-    data.putLong(ENERGY_TAG, split);
+    saveEnergy(data, ENERGY_TAG, energyShare(part, buffer.exact()));
+    saveEnergy(data, "pendingTax", energyShare(part, extracted.exact()));
     return data;
   }
 
   @Override
   public Logic addTunnel(Part part, Tag tag) {
-    if (tag instanceof CompoundTag data)
-      this.buffer += data.getLong(ENERGY_TAG);
+    if (tag instanceof CompoundTag data) {
+      this.buffer.add(readEnergy(data, ENERGY_TAG));
+      this.extracted.add(readEnergy(data, "pendingTax"));
+    }
     return addTunnel(part);
+  }
+
+  @Override
+  public boolean removeTunnel(Part part) {
+    var share = energyShare(part, buffer.exact());
+    var taxShare = energyShare(part, extracted.exact());
+    boolean removed = super.removeTunnel(part);
+    if (removed) { buffer.remove(share); extracted.remove(taxShare); }
+    return removed;
   }
 
   public static class Part extends
@@ -137,14 +148,11 @@ public class FEMultiP2PTunnel extends
   private class InputHandler implements IEnergyStorage {
     @Override
     public int receiveEnergy(int maxReceive, boolean simulate) {
-      if (isSatisfied) {
-        return 0;
-      } else {
-        if (!simulate)
-          // yes this breaks if more than max long is transfered, too bad!
-          buffer += maxReceive;
-        return maxReceive;
-      }
+      if (isSatisfied || maxReceive <= 0) return 0;
+      // Buffer plus untaxed withdrawals stays bounded even with repeated refill/extract calls.
+      int accepted = (int) Math.min(maxReceive, buffer.room() - Math.min(buffer.room(), extracted.stored()));
+      if (!simulate && accepted > 0) { buffer.add(accepted); markPersistentDataChanged(); }
+      return accepted;
     }
 
     @Override
@@ -180,11 +188,12 @@ public class FEMultiP2PTunnel extends
 
     @Override
     public int extractEnergy(int maxExtract, boolean simulate) {
-      long energyExtracted = Math.min(buffer, maxExtract);
+      long energyExtracted = Math.min(buffer.stored(), Math.max(0, maxExtract));
       if (!simulate) {
-        buffer -= energyExtracted;
+        buffer.remove(energyExtracted);
         // tax'll come during distribution
-        extracted += energyExtracted;
+        extracted.add(energyExtracted);
+        if (energyExtracted > 0) markPersistentDataChanged();
       }
       // cast is okay because energyExtracted will never be above an int
       return (int) energyExtracted;
@@ -193,7 +202,7 @@ public class FEMultiP2PTunnel extends
     @Override
     public int getEnergyStored() {
       try {
-        return Math.toIntExact(buffer);
+        return Math.toIntExact(buffer.stored());
       } catch (ArithmeticException e) {
         return Integer.MAX_VALUE;
       }
@@ -242,8 +251,8 @@ public class FEMultiP2PTunnel extends
   }
 
   @Override
-  protected Capability<IEnergyStorage> getCapability() {
-    return ForgeCapabilities.ENERGY;
+  protected BlockCapability<IEnergyStorage, Direction> getCapability() {
+    return Capabilities.EnergyStorage.BLOCK;
   }
 
   @Override
@@ -261,24 +270,34 @@ public class FEMultiP2PTunnel extends
   @Override
   public TickRateModulation tick() {
     boolean didWork = false;
-    long distributed = this.extracted;
-    this.extracted = 0;
-    for (var output : this.outputs) {
+    double distributed = this.extracted.asDouble();
+    this.extracted.clear();
+    var endpoints = endpointSnapshot();
+    for (var output : java.util.List.copyOf(this.outputs)) {
       try (var guard = output.getAdjacentCapability()) {
         int toInsert;
         try {
-          toInsert = Math.toIntExact(this.buffer);
+          toInsert = Math.toIntExact(this.buffer.stored());
         } catch (ArithmeticException e) {
           toInsert = Integer.MAX_VALUE;
         }
-        int inserted = guard.get().receiveEnergy(toInsert, false);
+        buffer.remove(toInsert);
+        int inserted = 0;
+        try {
+          inserted = (int) TransferMath.clampAccepted(toInsert, guard.get().receiveEnergy(toInsert, false));
+        } finally {
+          refundEnergy(java.math.BigInteger.valueOf(toInsert - inserted), endpoints, (tunnel, amount) -> {
+            tunnel.buffer.add(amount);
+            tunnel.markPersistentDataChanged();
+          });
+        }
         didWork |= inserted > 0;
         distributed += inserted;
-        this.buffer -= inserted;
       }
     }
-    this.isSatisfied = this.buffer / 2 > distributed;
-    this.deductEnergyCost(distributed, PowerUnits.FE);
+    if (distributed > 0) markPersistentDataChanged();
+    this.isSatisfied = this.buffer.asDouble() / 2 > distributed;
+    this.deductEnergyCost(distributed, PowerUnit.FE);
     return didWork ? TickRateModulation.FASTER : TickRateModulation.SLOWER;
   }
 }

@@ -43,6 +43,7 @@ public class FaultyMemoryCardItem extends MemoryCardItem implements IMouseWheelI
 
     @Override
     public InteractionResult onItemUseFirst(ItemStack stack, UseOnContext context) {
+        if (context.getLevel().isClientSide()) return InteractionResult.SUCCESS;
     	// copying/special tool use
         if (context.isSecondaryUseActive()) {
             return FaultyCardMode.of(stack).onItemSecondaryUseFirst(stack, context);
@@ -58,6 +59,7 @@ public class FaultyMemoryCardItem extends MemoryCardItem implements IMouseWheelI
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand hand) {
+        if (level.isClientSide()) return InteractionResultHolder.success(player.getItemInHand(hand));
     	ItemStack handStack = player.getItemInHand(hand);
         if (InteractionUtil.isInAlternateUseMode(player)) {
             this.cycleMode(player, handStack, true);
@@ -69,25 +71,21 @@ public class FaultyMemoryCardItem extends MemoryCardItem implements IMouseWheelI
 
     private void cycleMode(Player player, ItemStack cardStack, boolean cycleForward) {
         FaultyCardMode nextMode = FaultyCardMode.cycleMode(FaultyCardMode.of(cardStack), cycleForward);
-        nextMode.save(cardStack.getOrCreateTag());
+        nextMode.save(cardStack);
         if (player != null) {
             player.displayClientMessage(nextMode.getName(), true);
         }
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, Level level, List<Component> lines, TooltipFlag advancedTooltips) {
+    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> lines, TooltipFlag advancedTooltips) {
         lines.add(Tooltips.of(FaultyCardMode.of(stack).getName()));
-        super.appendHoverText(stack, level, lines, advancedTooltips);
+        super.appendHoverText(stack, context, lines, advancedTooltips);
     }
 
     @Override
     public int getColor(ItemStack stack) {
-        CompoundTag compoundTag = stack.getTagElement(TAG_DISPLAY);
-        if (compoundTag != null && compoundTag.contains(TAG_COLOR, 99)) {
-            return compoundTag.getInt(TAG_COLOR);
-        }
-        return 0xFF0000;
+        return net.minecraft.world.item.component.DyedItemColor.getOrDefault(stack, 0xFF0000);
     }
     
     public static int getTintColor(ItemStack stack, int index) {

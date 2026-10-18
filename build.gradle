@@ -1,227 +1,115 @@
-buildscript {
-    repositories {
-        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
-    }
-}
-
 plugins {
-    id 'net.neoforged.moddev.legacyforge' version '2.0.91'
-    id "maven-publish"
-    id "dev.vfyjxf.modaccessor" version "1.2.1"
-    id "eclipse"
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.141'
 }
-
-base {
-    archivesName = project.archives_base_name
+version = mod_version
+group = maven_group
+base { archivesName = archives_base_name }
+java { toolchain.languageVersion = JavaLanguageVersion.of(21); withSourcesJar() }
+sourceSets.main.resources.srcDir 'src/generated/resources'
+repositories {
+    mavenCentral()
+    maven { url = 'https://modmaven.dev/' }
 }
-
-version = project.mod_version
-group = project.maven_group
-
-java {
-    sourceCompatibility = targetCompatibility = JavaVersion.VERSION_17
-}
-
-legacyForge {
-    version = project.minecraft_version + '-' + project.forge_version
-
+neoForge {
+    version = neoforge_version
+    mods { mae2 { sourceSet sourceSets.main } }
     runs {
         configureEach {
-            gameDirectory = project.file('run')
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            logLevel = org.slf4j.event.Level.DEBUG
+            gameDirectory = file('run/' + name)
+            systemProperty 'neoforge.enabledGameTestNamespaces', 'mae2'
+            systemProperty 'mixin.debug.verify', 'true'
+            logLevel = org.slf4j.event.Level.INFO
         }
-
         client {
             client()
-            sourceSet = sourceSets.main
-
-            systemProperty 'forge.enabledGameTestNamespaces', mod_id
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            systemProperty 'forge.logging.console.level', 'debug'
-            systemProperty 'forge.enabledGameTestNamespaces', 'mae2'
+            if (project.hasProperty('serverAddress')) programArguments.addAll '--quickPlayMultiplayer', project.property('serverAddress')
         }
-
-        server {
-            server()
-            sourceSet = sourceSets.main
-
-            systemProperty 'forge.enabledGameTestNamespaces', mod_id
-            programArguments.addAll('--nogui', '--world', 'world-extra')
-            programArgument "-mixin.config=mixins.${mod_id}.json"
-        }
-
+        server { server(); programArgument '--nogui' }
+        gameTestServer { type = 'gameTestServer' }
         data {
             data()
-
-            sourceSet = sourceSets.main
-
-            programArguments.addAll('--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath())
-            programArguments.addAll('--existing-mod', 'ae2')
-        }
-    }
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
+            programArguments.addAll '--mod', 'mae2', '--all', '--output', file('src/generated/resources').absolutePath, '--existing', file('src/main/resources').absolutePath
         }
     }
 }
-
-sourceSets {
-    main {
-        ext.refMap = "mixins.${mod_id}.refmap.json"
-        resources {
-            srcDirs "src/generated/resources"
-        }
-    }
-}
-
-repositories {
-    mavenLocal()
-    flatDir {
-        dir 'libs'
-    }
-    mavenCentral()
-
-    maven { url "https://maven.neoforged.net/releases/" }
-    maven {
-        name 'FirstDarkDev'
-        url "https://maven.firstdarkdev.xyz/snapshots/"
-    }
-    maven {
-        name = 'ParchmentMC'
-        url = 'https://maven.parchmentmc.org'
-    }
-    maven {
-        url "https://maven.saps.dev/releases/"
-        content {
-            includeGroup "dev.latvian.mods"
-        }
-    }
-    maven {
-        // Patchouli, JEI
-        name = "BlameJared"
-        url = "https://maven.blamejared.com/"
-    }
-    maven {
-        url = "https://maven.theillusivec4.top/"
-    }
-    maven {
-        // Curse Forge File
-        url "https://cursemaven.com/"
-        content {
-            includeGroup "curse.maven"
-        }
-    }
-
-    maven {// emi
-        name = "TerraformersMC"
-        url = "https://maven.terraformersmc.com/"
-    }
-
-    maven {
-        name = 'GTCEu Maven'
-        url = 'https://maven.gtceu.com'
-        content {
-            includeGroup 'com.gregtechceu.gtceu'
-            includeGroup 'appeng'
-        }
-        }
-    maven {
-      name "GTCEu Maven"
-      url "https://maven.gtceu.com/"
-      content {
-        includeGroup 'appeng'
-        includeGroup 'com.gregtechceu.gtceu'
-      }
-    }
-    maven {
-        name 'Configuration'
-        url 'https://repo.repsy.io/mvn/toma/public/'
-    }
-}
-
-modAccessor {
-    createTransformConfiguration(configurations.compileOnly)
-    accessTransformerFiles = project.files('src/main/resources/META-INF/accesstransformer.cfg')
-}
-
 dependencies {
-    accessCompileOnly("appeng:appliedenergistics2-forge:$project.ae2_version_cl")
-    modImplementation("appeng:appliedenergistics2-forge:$project.ae2_version_cl")
-    modImplementation("org.appliedenergistics:guideme:$project.guideme_version")
-
-    //modRuntimeOnly("dev.toma.configuration:configuration-forge-$project.minecraft_version:$project.configuration_version")
-    modImplementation("com.gregtechceu.gtceu:gtceu-$project.minecraft_version:$project.gtceu_version") { transitive = false }
-    modImplementation("com.lowdragmc.ldlib:ldlib-forge-$project.minecraft_version:$project.ldlib_version") { transitive = false }
-
-    modRuntimeOnly("mezz.jei:jei-$project.minecraft_version-forge:$project.jei_version") { transitive = false }
-
-    modRuntimeOnly "dev.emi:emi-forge:$project.emi_version+$project.minecraft_version"
-
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    // Mixin Extras
-    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:$project.mixinextras_version"))
-    implementation(jarJar("io.github.llamalad7:mixinextras-forge:$project.mixinextras_version"))
-
-    compileOnly "org.jetbrains:annotations:26.0.2-1"
+    // Exact local artifacts prepared and verified by scripts/prepare_dependencies.py.
+    implementation files('dependencies/appliedenergistics2-19.2.18.jar')
+    implementation files('dependencies/gtceu-1.21.1-8.0.0.jar')
+    compileOnly fileTree('dependencies/compileOnly') { include '*.jar' }
+    implementation files('dependencies/guideme-21.1.1.jar')
+    compileOnly 'org.jetbrains:annotations:26.0.1'
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
+configurations.configureEach {
+    exclude group: 'appeng'
+    exclude group: 'com.gregtechceu.gtceu'
+    exclude group: 'org.appliedenergistics', module: 'appliedenergistics2'
+}
+test { useJUnitPlatform() }
+processResources {
+    def props = [mod_id:mod_id, version:version, mod_name:mod_name, mod_author:mod_author,
+                 mod_license:mod_license, mod_url:mod_url, neoforge_version:neoforge_version]
+    exclude '.cache/**'
+    inputs.properties props
+    filesMatching('META-INF/neoforge.mods.toml') { expand props }
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8'; options.compilerArgs += ['-Xmaxerrs', '500'] }
+tasks.withType(AbstractArchiveTask).configureEach {
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+}
+
+tasks.named('runServer') { standardInput = System.in }
 
 processResources {
-    // set up properties for filling into metadata
-    var properties = [
-            "mod_license": mod_license,
-            "mod_id": mod_id,
-            "version": version,
-            "mod_name": mod_name,
-            "mod_url": mod_url,
-            "mod_author": mod_author,
-            "forge_version": forge_version.split("\\.")[0], // only specify major version of forge
-            "minecraft_version": minecraft_version,
-            "ae2_version": ae2_version,
-            "gtceu_version": gtceu_version
-    ]
-    inputs.properties(properties)
-
-    filesMatching("META-INF/mods.toml") {
-        expand properties
+    from('dependencies.lock.json') {
+        into 'META-INF'
+        rename { 'mae2-dependencies.json' }
     }
 }
 
-tasks.named('jar', Jar).configure {
-    manifest {
-        attributes(["Specification-Title"     : mod_id,
-                    "Specification-Vendor"    : mod_author,
-                    "Specification-Version"   : "1",
-                    "Implementation-Title"    : project.name,
-                    "Implementation-Version"  : version,
-                    "Implementation-Vendor"   : mod_author,
-                    "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
-        ])
+def sha256 = { File file ->
+    def digest = java.security.MessageDigest.getInstance('SHA-256')
+    file.withInputStream { input ->
+        byte[] chunk = new byte[65536]
+        int size
+        while ((size = input.read(chunk)) != -1) digest.update(chunk, 0, size)
     }
-
-    finalizedBy 'reobfJar'
+    digest.digest().encodeHex().toString()
 }
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-tasks.withType(Jar).configureEach {
-    destinationDirectory.set(file("$rootDir/jar"))
-}
-mixin {
-    add sourceSets.main, "mixins.${mod_id}.refmap.json"
-    config "mixins.${mod_id}.json"
-}
-
-jar {
-    manifest {
-        attributes([
-                "MixinConfigs": "mixins.${mod_id}.json"
-        ])
+tasks.register('verifyPinnedDependencies') {
+    group = 'verification'
+    inputs.file('dependencies.lock.json')
+    inputs.files('dependencies/appliedenergistics2-19.2.18.jar', 'dependencies/gtceu-1.21.1-8.0.0.jar', 'dependencies/guideme-21.1.1.jar')
+    doLast {
+        def pinned = new groovy.json.JsonSlurper().parse(file('dependencies.lock.json'))
+        ['ae2', 'gt', 'guideme'].each { name ->
+            def spec = pinned[name]
+            def jar = file("dependencies/${spec.artifact}")
+            if (!jar.isFile() || sha256(jar) != spec.sha256) {
+                throw new GradleException("Pinned ${name} artifact is missing or changed. Run python3 scripts/prepare_dependencies.py")
+            }
+        }
     }
 }
+tasks.named('compileJava') { dependsOn 'verifyPinnedDependencies' }
+tasks.register('dependencyEvidence') {
+    group = 'verification'
+    dependsOn 'verifyPinnedDependencies'
+    doLast {
+        def evidence = [:]
+        ['compileClasspath', 'runtimeClasspath'].each { name ->
+            evidence[name] = configurations[name].files.sort { it.name }.collect {
+                [name: it.name, path: it.absolutePath, sha256: sha256(it)]
+            }
+        }
+        def destination = layout.buildDirectory.file('reports/dependency-evidence.json').get().asFile
+        destination.parentFile.mkdirs()
+        destination.text = groovy.json.JsonOutput.prettyPrint(groovy.json.JsonOutput.toJson(evidence)) + '\n'
+    }
+}
+
+tasks.named('jar') { from('LICENSE.txt') }

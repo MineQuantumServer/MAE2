@@ -6,8 +6,8 @@ import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.gametest.GameTestHolder;
 
 import stone.mae2.MAE2;
 
@@ -25,13 +25,13 @@ public class Vanilla {
     helper.succeedWhen(() -> {
       // no I don't know why assertContainerContains doesn't work
       BlockEntity barrel = helper.getBlockEntity(new BlockPos(0, 1, 0));
-      barrel
-        .getCapability(ForgeCapabilities.ITEM_HANDLER)
-        .ifPresent(handler -> {
+      var handler = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, barrel.getBlockPos(), null);
+      helper.assertTrue(handler != null, "Missing item capability");
+      {
           helper
             .assertTrue(handler.getStackInSlot(0).is(Items.LADDER),
               "no ladder");
-        });
+        }
     });
   }
 
@@ -41,13 +41,13 @@ public class Vanilla {
     helper.succeedWhen(() -> {
 
       BlockEntity barrel = helper.getBlockEntity(new BlockPos(0, 1, 0));
-      barrel
-        .getCapability(ForgeCapabilities.ITEM_HANDLER)
-        .ifPresent(handler -> {
+      var handler = helper.getLevel().getCapability(Capabilities.ItemHandler.BLOCK, barrel.getBlockPos(), null);
+      helper.assertTrue(handler != null, "Missing item capability");
+      {
           helper
             .assertTrue(handler.getStackInSlot(0).is(Items.LADDER),
               "no ladder");
-        });
+        }
     });
   }
 }

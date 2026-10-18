@@ -26,11 +26,11 @@ import appeng.items.parts.PartModelsHelper;
 import net.minecraft.Util;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraft.core.registries.Registries;
+import net.neoforged.neoforge.registries.DeferredHolder;
 
 import stone.mae2.MAE2;
 import stone.mae2.item.faulty.FaultyMemoryCardItem;
@@ -44,24 +44,24 @@ import stone.mae2.parts.p2p.multi.RedstoneMultiP2PTunnel;
 public abstract class MAE2Items {
 
   public static final DeferredRegister<Item> ITEMS = DeferredRegister
-    .create(ForgeRegistries.ITEMS, MAE2.MODID);
+    .create(Registries.ITEM, MAE2.MODID);
 
-  public static RegistryObject<PartItem<PatternP2PTunnelPart>> PATTERN_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<PatternP2PTunnelPart>> PATTERN_P2P_TUNNEL;
 
-  public static RegistryObject<PartItem<PatternMultiP2PTunnel.Part>> PATTERN_MULTI_P2P_TUNNEL;
-  public static RegistryObject<PartItem<RedstoneMultiP2PTunnel.Part>> REDSTONE_MULTI_P2P_TUNNEL;
-  public static RegistryObject<PartItem<FEMultiP2PTunnel.Part>> FE_MULTI_P2P_TUNNEL;
-  public static RegistryObject<PartItem<FluidMultiP2PTunnel.Part>> FLUID_MULTI_P2P_TUNNEL;
-  public static RegistryObject<PartItem<ItemMultiP2PTunnel.Part>> ITEM_MULTI_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<PatternMultiP2PTunnel.Part>> PATTERN_MULTI_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<RedstoneMultiP2PTunnel.Part>> REDSTONE_MULTI_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<FEMultiP2PTunnel.Part>> FE_MULTI_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<FluidMultiP2PTunnel.Part>> FLUID_MULTI_P2P_TUNNEL;
+  public static DeferredHolder<Item, PartItem<ItemMultiP2PTunnel.Part>> ITEM_MULTI_P2P_TUNNEL;
 
-  public static RegistryObject<CraftingBlockItem> ACCELERATOR_4x;
-  public static RegistryObject<CraftingBlockItem> ACCELERATOR_16x;
-  public static RegistryObject<CraftingBlockItem> ACCELERATOR_64x;
-  public static RegistryObject<CraftingBlockItem> ACCELERATOR_256x;
+  public static DeferredHolder<Item, CraftingBlockItem> ACCELERATOR_4x;
+  public static DeferredHolder<Item, CraftingBlockItem> ACCELERATOR_16x;
+  public static DeferredHolder<Item, CraftingBlockItem> ACCELERATOR_64x;
+  public static DeferredHolder<Item, CraftingBlockItem> ACCELERATOR_256x;
 
-  public static RegistryObject<BlockItem> CLOUD_CHAMBER;
+  public static DeferredHolder<Item, BlockItem> CLOUD_CHAMBER;
 
-  public static RegistryObject<FaultyMemoryCardItem> FAULTY_MEMORY_CARD;
+  public static DeferredHolder<Item, FaultyMemoryCardItem> FAULTY_MEMORY_CARD;
 
   public static void init(IEventBus bus) {
     register();

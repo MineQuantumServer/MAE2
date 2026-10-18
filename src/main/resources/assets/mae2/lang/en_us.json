@@ -29,5 +29,7 @@
   "item.mae2.pattern_multi_p2p_tunnel": "Pattern Multi P2P Tunnel",
   "item.mae2.pattern_p2p_tunnel": "Pattern P2P Tunnel",
   "item.mae2.redstone_multi_p2p_tunnel": "Redstone Multi P2P Tunnel",
-  "waila.mae2.P2POutputManyInputs": "Linked (Output Side) - %s Inputs"
+  "waila.mae2.P2POutputManyInputs": "Linked (Output Side) - %s Inputs",
+  "gui.mae2.blocking.no_provider": "Look at a pattern provider first.",
+  "gui.mae2.blocking.changed": "Pattern tunnel blocking policy: %s"
 }

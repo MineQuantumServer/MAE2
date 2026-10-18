@@ -18,7 +18,7 @@
  */
 package stone.mae2.parts.p2p.multi;
 
-import appeng.api.config.PowerUnits;
+import appeng.api.config.PowerUnit;
 import appeng.api.networking.GridFlags;
 import appeng.api.networking.IGrid;
 import appeng.api.networking.ticking.TickRateModulation;
@@ -30,13 +30,14 @@ import appeng.parts.p2p.P2PModels;
 import com.gregtechceu.gtceu.api.GTValues;
 import com.gregtechceu.gtceu.api.capability.IEnergyContainer;
 import com.gregtechceu.gtceu.api.capability.compat.FeCompat;
-import com.gregtechceu.gtceu.api.capability.forge.GTCapability;
+import com.gregtechceu.gtceu.api.capability.GTCapability;
 import net.minecraft.core.Direction;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
-import net.minecraftforge.common.capabilities.Capability;
+import net.neoforged.neoforge.capabilities.BlockCapability;
 
 import stone.mae2.MAE2;
+import stone.mae2.util.TransferMath;
 import stone.mae2.api.Tickable;
 import stone.mae2.me.service.MultiP2PService;
 
@@ -56,7 +57,7 @@ public class EUMultiP2PTunnel extends
    * quadratic
    */
   // Persisted
-  private long buffer;
+  private final stone.mae2.util.SharedEnergy buffer = new stone.mae2.util.SharedEnergy();
 
   // prevents divide by zero errors
   private long maxVoltage = 1;
@@ -82,18 +83,25 @@ public class EUMultiP2PTunnel extends
     if (data == null) {
       data = new CompoundTag();
     }
-    // grid seems to remove part before calling this, hence +1
-    long split = this.buffer / (this.inputs.size() + 1);
-    this.buffer -= split;
-    data.putLong(FEMultiP2PTunnel.ENERGY_TAG, split);
+    saveEnergy(data, FEMultiP2PTunnel.ENERGY_TAG, energyShare(part, buffer.exact()));
+    data.putLong("voltage", maxVoltage);
     return data;
   }
 
   @Override
   public Logic addTunnel(Part part, Tag tag) {
     if (tag instanceof CompoundTag data)
-      this.buffer += data.getLong(FEMultiP2PTunnel.ENERGY_TAG);
+      this.buffer.add(readEnergy(data, FEMultiP2PTunnel.ENERGY_TAG));
+    if (tag instanceof CompoundTag data) maxVoltage = Math.max(maxVoltage, data.getLong("voltage"));
     return addTunnel(part);
+  }
+
+  @Override
+  public boolean removeTunnel(Part part) {
+    var share = energyShare(part, buffer.exact());
+    boolean removed = super.removeTunnel(part);
+    if (removed) buffer.remove(share);
+    return removed;
   }
 
   public static class Part extends
@@ -139,16 +147,13 @@ public class EUMultiP2PTunnel extends
     @Override
     public long acceptEnergyFromNetwork(Direction side, long voltage,
       long amperage) {
+      if (isSatisfied || !grid.getService(MultiP2PService.class).taxSatisfied) return 0;
+      long accepted = TransferMath.acceptedPackets(buffer.stored(), voltage, amperage);
+      if (accepted == 0) return 0;
       maxVoltage = Math.max(maxVoltage, voltage);
-      // breaks when voltage and amperage are both significant fractions of max int,
-      // too bad!
-      if (!isSatisfied) {
-        buffer += voltage * amperage;
-
-        return amperage;
-      } else {
-        return 0;
-      }
+      buffer.add(voltage * accepted);
+      markPersistentDataChanged();
+      return accepted;
     }
 
     @Override
@@ -192,7 +197,7 @@ public class EUMultiP2PTunnel extends
     }
 
     @Override
-    public long getEnergyStored() { return buffer; }
+    public long getEnergyStored() { return buffer.stored(); }
 
     @Override
     public long getEnergyCapacity() { return Long.MAX_VALUE; }
@@ -235,7 +240,7 @@ public class EUMultiP2PTunnel extends
   }
 
   @Override
-  protected Capability<IEnergyContainer> getCapability() {
+  protected BlockCapability<IEnergyContainer, Direction> getCapability() {
     return GTCapability.CAPABILITY_ENERGY_CONTAINER;
   }
 
@@ -259,34 +264,48 @@ public class EUMultiP2PTunnel extends
       return TickRateModulation.IDLE;
     }
     boolean didWork = false;
-    long distributed = 0;
-    for (var output : this.outputs) {
+    double distributed = 0;
+    long voltage = maxVoltage;
+    var endpoints = endpointSnapshot();
+    for (var output : java.util.List.copyOf(this.outputs)) {
       try (var guard = output.getAdjacentCapability()) {
-        long inserted = guard
-          .get()
-          .acceptEnergyFromNetwork(output.part.getSide().getOpposite(),
-            maxVoltage, buffer / maxVoltage);
+        long offered = buffer.packets(voltage);
+        if (offered <= 0) break;
+        var reserved = java.math.BigInteger.valueOf(offered).multiply(java.math.BigInteger.valueOf(voltage));
+        buffer.remove(reserved);
+        long inserted = 0;
+        try {
+          inserted = TransferMath.clampAccepted(offered, guard.get().acceptEnergyFromNetwork(
+              output.part.getSide().getOpposite(), voltage, offered));
+        } finally {
+          var refund = reserved.subtract(java.math.BigInteger.valueOf(inserted).multiply(java.math.BigInteger.valueOf(voltage)));
+          refundEnergy(refund, endpoints, (tunnel, amount) -> {
+            tunnel.buffer.add(amount);
+            tunnel.maxVoltage = Math.max(tunnel.maxVoltage, voltage);
+            tunnel.markPersistentDataChanged();
+          });
+        }
         didWork |= inserted > 0;
         distributed += inserted;
-        this.buffer -= inserted * maxVoltage;
       }
     }
     // stop at double what's being transferred or one amp (whichever is higher)
     // (enough to
     // bootstrap the unsatisfaction)
-    this.isSatisfied = this.buffer > distributed * 2
-      && this.buffer >= maxVoltage;
+    this.isSatisfied = this.buffer.asDouble() / maxVoltage / 2 > distributed
+      && this.buffer.packets(maxVoltage) > 0;
     if (distributed > 0) {
+      markPersistentDataChanged();
       if (MAE2.CONFIG.parts().isEUP2PNerfed()) {
         int tier = (int) Math
-          .min(GTValues.TIER_COUNT,
-            Math.round(Math.log1p(maxVoltage / 8) / Math.log(4)));
+          .min(GTValues.TIER_COUNT - 1,
+            Math.round(Math.log1p(voltage / 8) / Math.log(4)));
         service.transferredAmps[tier] += distributed;
       } else
         this
-          .deductEnergyCost(distributed * maxVoltage * FeCompat.ratio(false),
-            PowerUnits.FE);
-      this.maxVoltage = 1;
+          .deductEnergyCost(distributed * voltage * FeCompat.ratio(false),
+            PowerUnit.FE);
+      if (buffer.isEmpty()) this.maxVoltage = 1;
     }
     return didWork ? TickRateModulation.FASTER : TickRateModulation.SLOWER;
   }

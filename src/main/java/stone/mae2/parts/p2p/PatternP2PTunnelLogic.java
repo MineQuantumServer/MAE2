@@ -1,7 +1,6 @@
 package stone.mae2.parts.p2p;
 
 import appeng.api.config.Actionable;
-import appeng.api.config.BlockingMode;
 import appeng.api.crafting.IPatternDetails;
 import appeng.api.crafting.IPatternDetails.IInput;
 import appeng.api.implementations.blockentities.ICraftingMachine;
@@ -17,19 +16,14 @@ import appeng.api.stacks.KeyCounter;
 import appeng.helpers.patternprovider.PatternProviderLogic;
 import appeng.helpers.patternprovider.PatternProviderLogicHost;
 import appeng.helpers.patternprovider.PatternProviderTarget;
-import appeng.helpers.patternprovider.PatternProviderTargetCache;
-import appeng.util.ConfigManager;
+import stone.mae2.parts.p2p.PatternTargetCache;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.block.entity.BlockEntity;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.util.LazyOptional;
-import org.checkerframework.checker.units.qual.C;
 
 import stone.mae2.MAE2;
 import stone.mae2.bootstrap.MAE2Items;
-import stone.mae2.util.LoadedModsHelper;
 import stone.mae2.util.TransHelper;
 
 import java.util.HashSet;
@@ -42,8 +36,7 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
   protected Set<AEKey> patternInputs;
   private int lastOutputIndex = 0;
 
-  public static boolean isBlocking;
-  public static BlockingMode blockingMode;
+
 
   public PatternP2PTunnelLogic(PatternP2PTunnel tunnel) {
     this.tunnel = tunnel;
@@ -66,6 +59,7 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
       return false;
     try {
       isRecursive = true;
+      if (tunnel.getPatternTunnelInputs().stream().noneMatch(t -> t.getMainNode().isActive())) return false;
       List<? extends Target> outputs = tunnel.getPatternTunnelOutputs();
       if (outputs.isEmpty())
         return false;
@@ -78,8 +72,7 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
         if (!output.canAcceptPattern())
           continue;
         ICraftingMachine craftingMachine = ICraftingMachine
-          .of(output.level(), output.pos(), output.side(),
-            output.level().getBlockEntity(output.pos()));
+          .of(output.level(), output.pos(), output.side());
         if (craftingMachine != null && craftingMachine.acceptsPlans()) {
           if (craftingMachine
             .pushPattern(pattern, ingredients, output.side())) {
@@ -90,12 +83,12 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
         }
 
         if (isExternal) {
-          PatternProviderTargetCache cache = output.getCache();
+          PatternTargetCache cache = output.getCache();
           if (cache == null)
             continue;
           final PatternProviderTarget target = cache.find();
           if (target == null
-            || shouldBlock(isBlocking, target, this.patternInputs))
+            || shouldBlock(PatternPushContext.isBlocking(), target, this.patternInputs))
             continue;
           if (targetAcceptsAll(target, ingredients)) {
             pattern
@@ -128,9 +121,7 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
    */
   public static boolean shouldBlock(boolean isBlocking,
     PatternProviderTarget target, Set<AEKey> inputs) {
-    return isBlocking && (LoadedModsHelper.isFork
-            ? target.containsPatternInput(inputs, blockingMode)
-            : target.containsPatternInput(inputs));
+    return isBlocking && target.containsPatternInput(inputs);
   }
 
   public void refreshOutputs() {
@@ -216,18 +207,10 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
      */
     ServerLevel level();
 
-    default PatternProviderTargetCache getCache() {
-      if (LoadedModsHelper.isFork) {
-        var provider = this.getTargetCraftingProvider();
-        if (provider instanceof PatternProviderLogic ppLogic) {
-          return new PatternProviderTargetCache(this.level(), this.pos(), this.side(), this.source(), (ConfigManager) ppLogic.getConfigManager());
-        }
-      }
-      // This is valid in both cases, either as a fallback when the input is not a Pattern Provider,
-      // or when we're not using the fork
-      // Works fine because the fork has an alternate constructor,
-      // so we don't need to use reflection, and we AT both those to public
-      return new PatternProviderTargetCache(this.level(), this.pos(), this.side(), this.source());
+    appeng.api.networking.IManagedGridNode getMainNode();
+
+    default PatternTargetCache getCache() {
+      return new PatternTargetCache(this.level(), this.pos(), this.side(), this.source());
     }
 
     boolean canAcceptPattern();
@@ -248,13 +231,8 @@ public class PatternP2PTunnelLogic implements ICraftingMachine {
 
     IActionSource source();
 
-    public default LazyOptional<C> getTargetCapability(Capability<C> cap) {
-      BlockEntity be = level().getBlockEntity(pos());
-      return be != null ? be.getCapability(cap, side()) : null;
-    }
-
     public default BlockEntity getTargetBlockEntity() {
-      return level().getBlockEntity(pos());
+      return level().hasChunkAt(pos()) ? level().getBlockEntity(pos()) : null;
     }
 
     public default ICraftingProvider getTargetCraftingProvider() {

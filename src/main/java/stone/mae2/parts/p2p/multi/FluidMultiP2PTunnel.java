@@ -27,10 +27,11 @@ import appeng.api.parts.IPartModel;
 import appeng.api.stacks.AEKeyType;
 import appeng.items.parts.PartModels;
 import appeng.parts.p2p.P2PModels;
-import net.minecraftforge.common.capabilities.Capability;
-import net.minecraftforge.common.capabilities.ForgeCapabilities;
-import net.minecraftforge.fluids.FluidStack;
-import net.minecraftforge.fluids.capability.IFluidHandler;
+import net.neoforged.neoforge.capabilities.BlockCapability;
+import net.minecraft.core.Direction;
+import net.neoforged.neoforge.capabilities.Capabilities;
+import net.neoforged.neoforge.fluids.FluidStack;
+import net.neoforged.neoforge.fluids.capability.IFluidHandler;
 import stone.mae2.MAE2;
 
 public class FluidMultiP2PTunnel extends CapabilityMultiP2PTunnel<FluidMultiP2PTunnel, FluidMultiP2PTunnel.Logic, FluidMultiP2PTunnel.Part, IFluidHandler> {
@@ -111,7 +112,7 @@ public class FluidMultiP2PTunnel extends CapabilityMultiP2PTunnel<FluidMultiP2PT
       }
 
       final int amountPerOutput = amount / outputTunnels;
-      int overflow = amountPerOutput == 0 ? amount : amount % amountPerOutput;
+      int overflow = amount % outputTunnels;
 
       for (Logic output : FluidMultiP2PTunnel.this.getOutputs()) {
         try (var capabilityGuard = output.getAdjacentCapability()) {
@@ -215,7 +216,7 @@ public class FluidMultiP2PTunnel extends CapabilityMultiP2PTunnel<FluidMultiP2PT
       FluidStack toDrain = resource.copy();
       for (Logic input : FluidMultiP2PTunnel.this.getInputs()) {
         try (var guard = input.getAdjacentCapability()) {
-          FluidStack result = guard.get().drain(resource, action);
+          FluidStack result = guard.get().drain(toDrain, action);
           toDrain.shrink(result.getAmount());
           if (toDrain.getAmount() <= 0)
             break;
@@ -238,18 +239,15 @@ public class FluidMultiP2PTunnel extends CapabilityMultiP2PTunnel<FluidMultiP2PT
       }
 
       FluidStack potential = FluidStack.EMPTY;
-      Set<Logic> inputs = FluidMultiP2PTunnel.this.getInputs();
-      for (Logic input : inputs) {
+      for (Logic input : FluidMultiP2PTunnel.this.getInputs()) {
         try (var guard = input.getAdjacentCapability()) {
-          potential = guard.get().drain(maxDrain, action);
-          if (potential != FluidStack.EMPTY)
-            break;
+          potential = guard.get().drain(maxDrain, FluidAction.SIMULATE);
         }
+        if (!potential.isEmpty()) break;
       }
-
-      FluidStack toDrain = potential.copy();
-      toDrain.setAmount(maxDrain - potential.getAmount());
-      return this.drain(toDrain, action);
+      if (potential.isEmpty()) return FluidStack.EMPTY;
+      potential.setAmount(maxDrain);
+      return drain(potential, action);
     }
   }
 
@@ -292,8 +290,8 @@ public class FluidMultiP2PTunnel extends CapabilityMultiP2PTunnel<FluidMultiP2PT
   }
 
   @Override
-  protected Capability<IFluidHandler> getCapability() {
-    return ForgeCapabilities.FLUID_HANDLER;
+  protected BlockCapability<IFluidHandler, Direction> getCapability() {
+    return Capabilities.FluidHandler.BLOCK;
   }
 
   @Override

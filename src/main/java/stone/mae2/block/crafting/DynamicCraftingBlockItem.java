@@ -33,21 +33,23 @@ import java.util.function.Supplier;
 
 public class DynamicCraftingBlockItem extends CraftingBlockItem {
 
-    private Supplier<ItemLike> disassemblyCasing;
+    private final Supplier<ItemLike> disassemblyCasing;
+    private final Supplier<ItemLike> disassemblyExtra;
 
     public DynamicCraftingBlockItem(Block id, Properties props,
         Supplier<ItemLike> disassemblyCasing,
         Supplier<ItemLike> disassemblyExtra) {
-        super(id, props, disassemblyExtra);
+        super(id, props);
+        this.disassemblyExtra = disassemblyExtra;
         this.disassemblyCasing = disassemblyCasing;
     }
 
     @Override
     public InteractionResultHolder<ItemStack> use(Level level, Player player,
         InteractionHand hand) {
-        if (AEConfig.instance().isDisassemblyCraftingEnabled()
-            && InteractionUtil.isInAlternateUseMode(player))
+        if (InteractionUtil.isInAlternateUseMode(player))
         {
+            if (level.isClientSide()) return InteractionResultHolder.success(player.getItemInHand(hand));
             int itemCount = player.getItemInHand(hand).getCount();
             player.setItemInHand(hand, ItemStack.EMPTY);
 

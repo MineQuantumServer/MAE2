@@ -1,0 +1,36 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "${mod_license}"
+[[mods]]
+modId = "${mod_id}"
+version = "${version}"
+displayName = "${mod_name}"
+displayURL = "${mod_url}"
+authors = "${mod_author}"
+description = "Modern AE2 Additions for Minecraft 1.21.1"
+[[mixins]]
+config = "mixins.mae2.json"
+[[dependencies.mae2]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "BOTH"
+[[dependencies.mae2]]
+modId = "minecraft"
+type = "required"
+versionRange = "[1.21.1]"
+ordering = "NONE"
+side = "BOTH"
+[[dependencies.mae2]]
+modId = "ae2"
+type = "required"
+versionRange = "[19.2.18]"
+ordering = "AFTER"
+side = "BOTH"
+[[dependencies.mae2]]
+modId = "gtceu"
+type = "required"
+versionRange = "[8.0.0]"
+ordering = "AFTER"
+side = "BOTH"

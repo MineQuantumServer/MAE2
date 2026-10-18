@@ -9,7 +9,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RedstoneLampBlock;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.gametest.GameTestHolder;
+import net.neoforged.neoforge.gametest.GameTestHolder;
 import stone.mae2.MAE2;
 
 @GameTestHolder(MAE2.MODID)
@@ -67,7 +67,7 @@ public class RedstoneP2P {
         }
         helper.fail("Redstone P2P failed to light the lamp");
       } else {
-        helper.assertBlockProperty(LAMP_POS, RedstoneLampBlock.LIT, (value) -> value, message);
+        helper.assertBlockProperty(LAMP_POS, RedstoneLampBlock.LIT, (value) -> !value, message);
       }
     }
   }

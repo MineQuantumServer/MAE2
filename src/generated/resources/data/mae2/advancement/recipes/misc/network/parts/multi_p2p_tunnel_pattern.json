@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_me_p2p": {
+      "conditions": {
+        "items": [
+          {
+            "items": "ae2:me_p2p_tunnel"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "mae2:network/parts/multi_p2p_tunnel_pattern"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_me_p2p"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "mae2:network/parts/multi_p2p_tunnel_pattern"
+    ]
+  }
+}

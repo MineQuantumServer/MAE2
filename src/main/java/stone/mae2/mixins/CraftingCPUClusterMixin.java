@@ -28,6 +28,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public abstract class CraftingCPUClusterMixin {
     @Redirect(method = "addBlockEntity(Lappeng/blockentity/crafting/CraftingBlockEntity;)V", at = @At(ordinal = 1, value = "INVOKE", target = "Lappeng/blockentity/crafting/CraftingBlockEntity;getAcceleratorThreads()I"))
     public int onGetThreads(CraftingBlockEntity te) {
-        return 1;
+        return te.getBlockState().getBlock() instanceof appeng.block.crafting.CraftingUnitBlock block
+            && block.type instanceof stone.mae2.block.crafting.DynamicCraftingUnitType
+            ? 1 : te.getAcceleratorThreads();
     }
 }

@@ -49,8 +49,9 @@ public class GlobalPaste extends FaultyCardMode {
         if (be instanceof IPartHost partHost) {
             SelectedPart selectedPart = partHost.selectPartWorld(context.getClickLocation());
             if (selectedPart.part != null && selectedPart.side != null && stack.getItem() instanceof IMemoryCard) {
+                if (selectedPart.part.getGridNode() == null) return InteractionResult.PASS;
             	for (IGridNode node : selectedPart.part.getGridNode().getGrid().getMachineNodes(selectedPart.part.getClass())) {
-                    ((IPart) node.getOwner()).onActivate(context.getPlayer(), context.getHand(), context.getClickLocation());
+                    ((IPart) node.getOwner()).onUseItemOn(stack, context.getPlayer(), context.getHand(), context.getClickLocation());
             	}
                 return InteractionResult.SUCCESS;
             }

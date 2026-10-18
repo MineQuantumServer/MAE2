@@ -1,0 +1,16 @@
+// Build-only metadata and deterministic ZIP settings; does not alter upstream sources.
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.force 'org.appliedenergistics:appliedenergistics2:19.2.18'
+    }
+    tasks.withType(AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+    tasks.withType(Jar).configureEach {
+        manifest.attributes(
+            'Source-Repository': providers.gradleProperty('dependencySourceUrl').get(),
+            'Source-Commit': providers.gradleProperty('dependencySourceCommit').get(),
+            'Source-Patch-SHA256': providers.gradleProperty('dependencyPatchSha256').getOrElse('none'))
+    }
+}
