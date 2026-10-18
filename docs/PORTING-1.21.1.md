@@ -79,6 +79,8 @@ TODO.org 的 Pattern Multitool、GregTech Patterns、Sticky Card、Beam Former�
 |旧 NBT 持久化方法|增加 HolderLookup.Provider；RegistryFriendlyByteBuf|全量更新部件/发送队列/网络服务保存和网络同步|
 |PowerUnits / 旧 GT capability 包|PowerUnit / 指定 GT 的 GTCapability|更新类型与接口；GT 方法返回值按安培处理|
 
+本次额外策略作用于经 MAE2 样板 P2P 访问的目标；官方供应器直接连接机器时仍采用官方原生阻挡逻辑，未把外部 fork 的整套供应器行为移入 MAE2。
+
 Cosmolite 的额外阻挡策略用法：先在官方供应器 GUI 开启阻挡，再对准该供应器（方块或部件）执行 `/mae2 blocking default`、`all` 或 `smart`。DEFAULT 检查原料，ALL 检查任何非电路物料，SMART 检查非配方原料；与原 fork 代码语义一致。官方 AE2 没有 fork 的额外按钮，因此选择入口改为命令；设置仍通过供应器自身保存、记忆卡导出/导入。命令检查玩家交互权限。
 
 每个 Mixin 默认 require=1；Java21；客户端模型 Mixin 独立于公共 Mixin。运行时已实际应用，无 MAE2 注入失败。GT 的可选 JEI/EMI 目标缺失警告来自锁定的上游 GT，见限制说明。
